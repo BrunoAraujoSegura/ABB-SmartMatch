@@ -385,7 +385,10 @@ if st.session_state.step == 5:
     # Botones
     colr1, colr2 = st.columns([1, 1])
     with colr1:
-        st.button("🔄 Reiniciar simulación", key="reiniciar", type="secondary")
+        if st.button("🔄 Reiniciar simulación", key="reiniciar", type="secondary"):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
     with colr2:
         st.button("📧 Contactar a especialista ABB", key="contactar", type="primary")
 
