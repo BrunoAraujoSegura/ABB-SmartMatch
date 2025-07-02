@@ -198,24 +198,14 @@ if st.session_state.step == 4:
 
 # Resultado de análisis
 
-# Función para obtener color pastel según prioridad
-def get_priority_color(index):
-    colores = ["#fbeaea", "#fff3e0", "#fffde7"]  # rojo claro, naranja claro, amarillo claro
-    return colores[index] if index < len(colores) else "#f7f8f9"
 
 if st.session_state.step == 5:
     st.header("Resultado del análisis :")
 
-    # ↓ Estilo para resumen de información
-    card_info_style = """
-        background-color: #f7f8f9;
-        padding: 10px 15px;
-        border-radius: 8px;
-        margin-bottom: 8px;
-        font-size: 80%;
-    """
-    
-    # ↓ Estilo para cada línea tipo tarjeta (fondo gris claro, similar a los indicadores VoD)
+    def get_priority_color(index):
+        colores = ["#fbeaea", "#fff3e0", "#fffde7"]
+        return colores[index] if index < len(colores) else "#f7f8f9"
+
     card_line_style = """
         background-color: #f7f8f9;
         padding: 10px 15px;
@@ -247,92 +237,97 @@ if st.session_state.step == 5:
                 </div>
             """, unsafe_allow_html=True)
 
-    # ✅ Recomendación destacada
+    # Cálculos de energía
+    n_prim = st.session_state.ventiladores_prim
+    p_prim = st.session_state.potencia_prim
+    n_comp = st.session_state.ventiladores_comp
+    p_comp = st.session_state.potencia_comp
+    pot_total_kw = (n_prim * p_prim) + (n_comp * p_comp)
+    horas_anuales = 8760
+    energia_actual = pot_total_kw * horas_anuales / 1000
+
+    nivel = st.session_state.nivel_auto
+    if nivel == "Bajo":
+        velocidad_relativa = 0.92
+        factor_eficiencia = 0.8
+        inversion_inicial = 8000
+    elif nivel == "Medio":
+        velocidad_relativa = 0.90
+        factor_eficiencia = 1.0
+        inversion_inicial = 10000
+    else:
+        velocidad_relativa = 0.87
+        factor_eficiencia = 1.1
+        inversion_inicial = 12000
+
+    reduccion_pct = (1 - velocidad_relativa**3) * factor_eficiencia
+    reduccion_pct = min(reduccion_pct, 0.5)
+
+    energia_vod = energia_actual * (1 - reduccion_pct)
+    ahorro_energia = energia_actual - energia_vod
+
+    tarifa_dict = {
+        "Mayor a 0.1": 0.11,
+        "Entre 0.076 a 0.1": 0.09,
+        "Entre 0.05 a 0.075": 0.065,
+        "Menor a 0.05": 0.04
+    }
+    tarifa_real = tarifa_dict[st.session_state.tarifa]
+    ahorro_usd = ahorro_energia * 1000 * tarifa_real
+    ahorro_mensual = ahorro_usd / 12
+
     st.markdown("<div style='background-color:#DFF0D8; padding:10px; font-size:150%; font-weight:bold;'>✅ Recomendación: Implementar Ventilation On Demand (Nivel 1)</div>", unsafe_allow_html=True)
 
-    # ▶️ Gráfico comparativo energético anual
-    energia_actual = 192.3
-    energia_vod = 119.3
-
+    # Gráfico de consumo
     fig1 = go.Figure()
-    fig1.add_trace(go.Bar(name="with existing control method", x=["Total"], y=[energia_actual], marker_color="#d3d3d3"))
-    fig1.add_trace(go.Bar(name="with ABB drive control", x=["Total"], y=[energia_vod], marker_color="#439889"))
+    fig1.add_trace(go.Bar(name="Con control actual", x=["Total"], y=[energia_actual], marker_color="#d3d3d3"))
+    fig1.add_trace(go.Bar(name="Con ABB VoD", x=["Total"], y=[energia_vod], marker_color="#439889"))
+    fig1.add_shape(type="line", x0=-0.15, y0=energia_actual, x1=0.15, y1=energia_vod,
+                   line=dict(color="red", width=2, dash="dash"))
+    fig1.add_annotation(x=0, y=(energia_actual + energia_vod)/2,
+                        text=f"Ahorro {round(reduccion_pct*100)}%", showarrow=False,
+                        font=dict(size=12, color="red"), yshift=10)
+    fig1.update_layout(title="🔌 Consumo Energético Anual",
+                       yaxis_title="Energía (MWh)", xaxis_title="Sistema", barmode='group')
 
-    # Agregar línea diagonal de ahorro
-    fig1.add_shape(
-        type="line",
-        x0=-0.15, y0=energia_actual,
-        x1=0.15, y1=energia_vod,
-        line=dict(color="red", width=2, dash="dash"),
-    )
-
-    # Agregar texto del ahorro
-    fig1.add_annotation(
-        x=0, y=(energia_actual + energia_vod)/2,
-        text="Ahorro 38%",
-        showarrow=False,
-        font=dict(size=12, color="red"),
-        yshift=10
-    )
-
-    fig1.update_layout(
-        title="🔌 Consumo Energético Anual",
-        yaxis_title="Energy consumption (MWh)",
-        xaxis_title="Sistema",
-        barmode='group'
-    )
-
-
-    # ▶️ Gráfico económico acumulado
-    ahorro_anual = 7302
-    ahorro_mensual = ahorro_anual / 12
-    inversion_inicial = 10000
-    meses = list(range(1, 7))
+    # Gráfico económico actualizado
+    meses = list(range(1, 25))
     ahorro_acumulado = [i * ahorro_mensual for i in meses]
+    payback_mes = next((i+1 for i, ahorro in enumerate(ahorro_acumulado) if ahorro >= inversion_inicial), None)
 
-    # Detectar mes de payback
-    payback_mes = next((i + 1 for i, ahorro in enumerate(ahorro_acumulado) if ahorro >= inversion_inicial), None)
+    if payback_mes and payback_mes <= 12:
+        meses = list(range(1, 13))
+        ahorro_acumulado = [i * ahorro_mensual for i in meses]
 
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(name="Ahorro acumulado", x=meses, y=ahorro_acumulado,
-                              mode="lines+markers", line=dict(color="#0072C6", width=3)))  # azul ABB
-    fig2.add_trace(go.Scatter(name="Inversión inicial", x=meses, y=[inversion_inicial]*6,
-                              mode="lines", line=dict(dash="dash", color="red")))
+                              mode="lines+markers", line=dict(color="#0072C6", width=3)))
+    fig2.add_trace(go.Scatter(name="Inversión inicial", x=[0] + meses,
+                              y=[inversion_inicial]*(len(meses)+1), mode="lines",
+                              line=dict(dash="dash", color="red")))
 
     if payback_mes:
-        fig2.add_shape(
-            type="line",
-            x0=payback_mes,
-            x1=payback_mes,
-            y0=0,
-            y1=max(max(ahorro_acumulado), inversion_inicial),
-            line=dict(color="#439889", dash="dot")
-        )
         fig2.add_trace(go.Scatter(
-            name="Ahorro neto",
-            x=meses[payback_mes-1:],
-            y=ahorro_acumulado[payback_mes-1:],
-            fill='tozeroy',
-            mode='none',
-            fillcolor="rgba(67, 152, 137, 0.2)",
-            showlegend=False
+            x=meses[payback_mes-1:], y=[inversion_inicial]*len(meses[payback_mes-1:]),
+            mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip"
         ))
+        fig2.add_trace(go.Scatter(
+            x=meses[payback_mes-1:], y=ahorro_acumulado[payback_mes-1:],
+            mode="lines", line=dict(width=0), fill='tonexty',
+            fillcolor="rgba(67, 152, 137, 0.2)", showlegend=False, hoverinfo="skip"
+        ))
+        fig2.add_shape(type="line", x0=payback_mes, x1=payback_mes, y0=0,
+                       y1=max(ahorro_acumulado), line=dict(color="#439889", dash="dot"))
 
-    fig2.update_layout(
-        title="💰 Ahorro Económico Acumulado",
-        xaxis_title="Meses",
-        yaxis_title="USD"
-    )
+    fig2.update_layout(title="💰 Ahorro Económico Acumulado",
+                       xaxis_title="Meses", yaxis_title="USD")
 
     colg1, colg2 = st.columns(2)
     colg1.plotly_chart(fig1, use_container_width=True)
     colg2.plotly_chart(fig2, use_container_width=True)
 
     if payback_mes:
-        st.success(f"💡 **Payback estimado**: mes {payback_mes}. A partir de aquí, los ahorros netos superan la inversión.")
-
-    # Indicadores VoD y Ahorro económico
-    st.markdown("## Indicadores VoD & Ahorro económico")
+        st.success(f"💡 **Payback estimado**: mes {payback_mes}. Desde aquí, los ahorros superan la inversión.")
 
     card_style = """
         background-color: #f7f8f9;
@@ -343,15 +338,15 @@ if st.session_state.step == 5:
     """
 
     indicadores_vod = {
-        "Ahorro de energía anual": "73 MWh",
-        "Consumo energético actual": "192.3 MWh",
-        "Porcentaje de ahorro energético": "38 %"
+        "Ahorro de energía anual": f"{ahorro_energia:.1f} MWh",
+        "Consumo energético actual anual": f"{energia_actual:.1f} MWh",
+        "Porcentaje de ahorro energético anual": f"{reduccion_pct*100:.1f} %"
     }
 
     indicadores_economicos = {
-        "Consumo con VoD": "119.3 MWh",
-        "Ahorro económico anual": "7,302 USD",
-        "Reducción de emisiones CO₂": "21.9 t/año"
+        "Consumo con VoD anual": f"{energia_vod:.1f} MWh",
+        "Ahorro económico anual": f"{ahorro_usd:,.0f} USD",
+        "Reducción de emisiones CO₂": f"{ahorro_energia * 0.3:.1f} t/año"
     }
 
     col1, col2 = st.columns(2)
@@ -374,15 +369,12 @@ if st.session_state.step == 5:
                 </div>
             """, unsafe_allow_html=True)
 
-    # Mensaje de cierre
     st.info("""
     ✔️ **Simulación completa**  
     Propuesta técnica y económica.  
-    La evaluación para implementar VoD ha sido completada.  
-    Incluye indicadores técnicos, operativos y sostenibles.
+    Evaluación VoD con indicadores reales y personalizados.
     """)
 
-    # Botones
     colr1, colr2 = st.columns([1, 1])
     with colr1:
         if st.button("🔄 Reiniciar simulación", key="reiniciar", type="secondary"):
@@ -391,4 +383,3 @@ if st.session_state.step == 5:
             st.rerun()
     with colr2:
         st.button("📧 Contactar a especialista ABB", key="contactar", type="primary")
-
