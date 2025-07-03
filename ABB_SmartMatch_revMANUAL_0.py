@@ -55,7 +55,7 @@ if st.session_state.step == 1:
 
     st.session_state.tipo_mina = st.selectbox("Seleccione el tipo de mina:", ["Subterránea", "Tajo abierto"])
     st.session_state.tipo_material = st.selectbox("Seleccione el tipo de material a extraer:", ["Polimetálico", "Fosfatos", "Cobre", "Hierro"])
-    st.session_state.produccion = st.selectbox("Tonelada diaria producida:", [
+    st.session_state.produccion = st.selectbox("Tonelada diaria procesada:", [
         "Menor a 5,000 ton", 
         "5,000 a 60,000 ton", 
         "Mayor a 60,000 ton"
