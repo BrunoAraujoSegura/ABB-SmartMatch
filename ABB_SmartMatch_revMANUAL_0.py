@@ -2,7 +2,7 @@
 import streamlit as st
 import plotly.graph_objects as go
 
-st.set_page_config(layout="wide", page_title="ABB SmartMatch™")
+st.set_page_config(layout="wide", page_title="Sustainability Smart Simulator")
 
 # Logo (si existe)
 try:
@@ -10,7 +10,7 @@ try:
 except:
     pass
 
-st.title("ABB SmartMatch™")
+st.title("Sustainability Smart Simulator")
 st.markdown("Empareja tu necesidad con la mejor solución de ABB.")
 
 #Botones 
