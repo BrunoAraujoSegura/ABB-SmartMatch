@@ -196,11 +196,15 @@ if st.session_state.step == 4:
                 st.rerun()
 
 
+
 # Resultado de análisis
 
+# Resultado de análisis
 
 if st.session_state.step == 5:
     st.header("Resultado del análisis :")
+
+    import plotly.graph_objects as go
 
     def get_priority_color(index):
         colores = ["#fbeaea", "#fff3e0", "#fffde7"]
@@ -276,9 +280,37 @@ if st.session_state.step == 5:
     ahorro_usd = ahorro_energia * 1000 * tarifa_real
     ahorro_mensual = ahorro_usd / 12
 
-    st.markdown("<div style='background-color:#DFF0D8; padding:10px; font-size:150%; font-weight:bold;'>✅ Recomendación: Implementar Ventilation On Demand (Nivel 1)</div>", unsafe_allow_html=True)
+    # 🔰 Recomendación - Ahorro acumulado
+    st.markdown("""
+    <div style='background-color:#DFF0D8; padding:15px; font-size:150%; font-weight:bold; text-align:center; border-radius:8px;'>
+    ✅ Recomendación: Implementar Ventilation On Demand (Nivel 1)
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Gráfico de consumo
+    espacio, derecha = st.columns([3, 1])  # Espacio vacío a la izquierda
+
+    with derecha:
+        col_chk1, col_chk2 = st.columns([1, 1])
+        with col_chk1:
+            mostrar_opt = st.checkbox("✅ Ahorro acumulado optimista", value=False)
+        with col_chk2:
+            mostrar_con = st.checkbox("☐ Ahorro acumulado conservador", value=False)
+     
+    # Cálculo de ahorro económico
+    meses = list(range(1, 25))
+    ahorro_acumulado = [i * ahorro_mensual for i in meses]
+    ahorro_optimista = [x * 1.15 for x in ahorro_acumulado]
+    ahorro_conservador = [x * 0.85 for x in ahorro_acumulado]
+
+    payback_mes = next((i+1 for i, ahorro in enumerate(ahorro_acumulado) if ahorro >= inversion_inicial), None)
+
+    if payback_mes and payback_mes <= 12:
+        meses = list(range(1, 13))
+        ahorro_acumulado = [i * ahorro_mensual for i in meses]
+        ahorro_optimista = [x * 1.15 for x in ahorro_acumulado]
+        ahorro_conservador = [x * 0.85 for x in ahorro_acumulado]
+
+    # Gráfico consumo energético
     fig1 = go.Figure()
     fig1.add_trace(go.Bar(name="Con control actual", x=["Total"], y=[energia_actual], marker_color="#d3d3d3"))
     fig1.add_trace(go.Bar(name="Con ABB VoD", x=["Total"], y=[energia_vod], marker_color="#439889"))
@@ -290,15 +322,7 @@ if st.session_state.step == 5:
     fig1.update_layout(title="🔌 Consumo Energético Anual",
                        yaxis_title="Energía (MWh)", xaxis_title="Sistema", barmode='group')
 
-    # Gráfico económico actualizado
-    meses = list(range(1, 25))
-    ahorro_acumulado = [i * ahorro_mensual for i in meses]
-    payback_mes = next((i+1 for i, ahorro in enumerate(ahorro_acumulado) if ahorro >= inversion_inicial), None)
-
-    if payback_mes and payback_mes <= 12:
-        meses = list(range(1, 13))
-        ahorro_acumulado = [i * ahorro_mensual for i in meses]
-
+    # Gráfico ahorro económico
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(name="Ahorro acumulado", x=meses, y=ahorro_acumulado,
                               mode="lines+markers", line=dict(color="#0072C6", width=3)))
@@ -306,7 +330,17 @@ if st.session_state.step == 5:
                               y=[inversion_inicial]*(len(meses)+1), mode="lines",
                               line=dict(dash="dash", color="red")))
 
+    if mostrar_opt:
+        fig2.add_trace(go.Scatter(name="Ahorro acumulado optimista", x=meses, y=ahorro_optimista,
+                                  mode="lines", line=dict(color="green", dash="dot")))
+
+    if mostrar_con:
+        fig2.add_trace(go.Scatter(name="Ahorro acumulado conservador", x=meses, y=ahorro_conservador,
+                                  mode="lines", line=dict(color="orange", dash="dot")))
+
     if payback_mes:
+        fig2.add_shape(type="line", x0=payback_mes, x1=payback_mes, y0=0,
+                       y1=max(ahorro_acumulado), line=dict(color="#439889", dash="dot"))
         fig2.add_trace(go.Scatter(
             x=meses[payback_mes-1:], y=[inversion_inicial]*len(meses[payback_mes-1:]),
             mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip"
@@ -316,8 +350,6 @@ if st.session_state.step == 5:
             mode="lines", line=dict(width=0), fill='tonexty',
             fillcolor="rgba(67, 152, 137, 0.2)", showlegend=False, hoverinfo="skip"
         ))
-        fig2.add_shape(type="line", x0=payback_mes, x1=payback_mes, y0=0,
-                       y1=max(ahorro_acumulado), line=dict(color="#439889", dash="dot"))
 
     fig2.update_layout(title="💰 Ahorro Económico Acumulado",
                        xaxis_title="Meses", yaxis_title="USD")
@@ -329,6 +361,7 @@ if st.session_state.step == 5:
     if payback_mes:
         st.success(f"💡 **Payback estimado**: mes {payback_mes}. Desde aquí, los ahorros superan la inversión.")
 
+    # Indicadores
     card_style = """
         background-color: #f7f8f9;
         padding: 20px;
@@ -338,14 +371,14 @@ if st.session_state.step == 5:
     """
 
     indicadores_vod = {
-        "Ahorro de energía anual": f"{ahorro_energia:.1f} MWh",
-        "Consumo energético actual anual": f"{energia_actual:.1f} MWh",
+        "Ahorro de energía anual": f"{ahorro_energia/1000:.1f} GWh",
+        "Consumo energético actual anual": f"{energia_actual/1000:.1f} GWh",
         "Porcentaje de ahorro energético anual": f"{reduccion_pct*100:.1f} %"
     }
 
     indicadores_economicos = {
-        "Consumo con VoD anual": f"{energia_vod:.1f} MWh",
-        "Ahorro económico anual": f"{ahorro_usd:,.0f} USD",
+        "Consumo con VoD anual": f"{energia_vod/1000:.1f} GWh",
+        "Ahorro económico anual": f"{ahorro_usd/1000:,.0f} KUSD",
         "Reducción de emisiones CO₂": f"{ahorro_energia * 0.3:.1f} t/año"
     }
 
@@ -383,3 +416,4 @@ if st.session_state.step == 5:
             st.rerun()
     with colr2:
         st.button("📧 Contactar a especialista ABB", key="contactar", type="primary")
+
