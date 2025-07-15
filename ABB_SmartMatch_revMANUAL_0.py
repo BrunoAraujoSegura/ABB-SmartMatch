@@ -292,9 +292,9 @@ if st.session_state.step == 5:
     with derecha:
         col_chk1, col_chk2 = st.columns([1, 1])
         with col_chk1:
-            mostrar_opt = st.checkbox("✅ Ahorro acumulado optimista", value=False)
+            mostrar_opt = st.checkbox("Escenario optimista", value=False)
         with col_chk2:
-            mostrar_con = st.checkbox("☐ Ahorro acumulado conservador", value=False)
+            mostrar_con = st.checkbox("Escenario conservador", value=False)
      
     # Cálculo de ahorro económico
     meses = list(range(1, 25))
@@ -331,11 +331,11 @@ if st.session_state.step == 5:
                               line=dict(dash="dash", color="red")))
 
     if mostrar_opt:
-        fig2.add_trace(go.Scatter(name="Ahorro acumulado optimista", x=meses, y=ahorro_optimista,
+        fig2.add_trace(go.Scatter(name="Escenario optimista", x=meses, y=ahorro_optimista,
                                   mode="lines", line=dict(color="green", dash="dot")))
 
     if mostrar_con:
-        fig2.add_trace(go.Scatter(name="Ahorro acumulado conservador", x=meses, y=ahorro_conservador,
+        fig2.add_trace(go.Scatter(name="Escenario conservador", x=meses, y=ahorro_conservador,
                                   mode="lines", line=dict(color="orange", dash="dot")))
 
     if payback_mes:
@@ -378,7 +378,7 @@ if st.session_state.step == 5:
 
     indicadores_economicos = {
         "Consumo con VoD anual": f"{energia_vod/1000:.1f} GWh",
-        "Ahorro económico anual": f"{ahorro_usd/1000:,.0f} KUSD",
+        "Ahorro económico anual": f"{ahorro_usd/1000:,.0f} K USD",
         "Reducción de emisiones CO₂": f"{ahorro_energia * 0.3:.1f} t/año"
     }
 
