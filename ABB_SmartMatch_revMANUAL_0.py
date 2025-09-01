@@ -43,6 +43,85 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+#AGREGADO 27.08.2025 BAS
+# =====================================
+# Constantes / Modelo de negocio
+# =====================================
+NIVELES = ["Esencial", "Básico", "Operación Efectiva", "Smart"]
+TRANSICION_A_CASO = {
+    ("Esencial", "Básico"): 1,
+    ("Básico", "Operación Efectiva"): 2,
+    ("Operación Efectiva", "Smart"): 3,
+    ("Esencial", "Smart"): 4
+}
+# Esquemas programados para C2
+ESQUEMAS = {
+    1: {"alta": 0.50, "baja": 0.50},
+    2: {"alta": 0.83, "baja": 0.17},
+    3: {"alta": 0.79, "baja": 0.21},
+}
+
+# CAPEX por ventilador (valores de ejemplo; reemplazar por Excel si corresponde)
+CAPEX_POR_VEN_DEFAULT = {
+    ("Esencial", "Básico"):  4000.0,
+    ("Básico", "Operación Efectiva"): 7000.0,
+    ("Operación Efectiva", "Smart"): 12000.0,
+    ("Esencial", "Smart"):  20000.0,
+}
+
+# =====================================
+# Utilidades de cálculo (consistentes con Excel)
+# =====================================
+def energia_anual_mwh(p_kw: float, horas: float) -> float:
+    return (p_kw * horas) / 1000.0
+
+def calc_caso1(E0_mwh: float, reduccion_pct: float, tarifa: float):
+    E1 = E0_mwh * (1 - reduccion_pct) ** 3
+    A1_mwh = max(E0_mwh - E1, 0.0)
+    A1_usd = A1_mwh * 1000.0 * tarifa
+    return E1, A1_mwh, A1_usd
+
+def calc_caso2(p_kw: float, horas: float, esquema_id: int, reduccion_baja_pct: float, tarifa: float, baseline_mwh: float):
+    esquema = ESQUEMAS[esquema_id]
+    h_alta = horas * esquema["alta"]
+    h_baja = horas * esquema["baja"]
+    E_alta = energia_anual_mwh(p_kw, h_alta)  # alta sin reducción adicional
+    E_baja = energia_anual_mwh(p_kw * (1 - reduccion_baja_pct) ** 3, h_baja)
+    E2 = E_alta + E_baja
+    A2_mwh = max(baseline_mwh - E2, 0.0)
+    A2_usd = A2_mwh * 1000.0 * tarifa
+    return E2, A2_mwh, A2_usd
+
+def calc_caso3(baseline_mwh: float, q_rel: float, tarifa: float):
+    E3 = baseline_mwh * (q_rel ** 3)
+    A3_mwh = max(baseline_mwh - E3, 0.0)
+    A3_usd = A3_mwh * 1000.0 * tarifa
+    return E3, A3_mwh, A3_usd
+
+# Serie de payback "Excel-like": M1/M3/M5 gastos 40/40/20; ahorro desde M7 (impl=6m)
+def serie_payback_excel_like(ahorro_anual_usd: float,
+                             capex_usd: float,
+                             meses_impl: int = 6,
+                             prr_meses = (1,3,5),
+                             prr_pct   = (0.40,0.40,0.20),
+                             meses: int = 24):
+    ahorro_mensual = ahorro_anual_usd / 12.0
+    flujo = []
+    for m in range(1, meses+1):
+        gasto = 0.0
+        for mm, pp in zip(prr_meses, prr_pct):
+            if m == mm:
+                gasto += capex_usd * pp
+        ahorro = ahorro_mensual if m > meses_impl else 0.0
+        flujo.append(ahorro - gasto)
+    acumulado = list(np.cumsum(flujo))
+    pb_mes = next((i+1 for i, v in enumerate(acumulado) if v >= 0), None)
+    return list(range(1, meses+1)), flujo, acumulado, pb_mes
+
+
+
+
+
 # Inicializar estados
 if "step" not in st.session_state:
     st.session_state.step = 1
@@ -126,31 +205,121 @@ if st.session_state.step == 2:
                 next_step()
                 st.rerun()
 
+# ---------------- Config (reemplaza TRANSICION_A_CASO) ----------------
+NIVELES_ORDEN = ["Esencial", "Básico", "Operación Efectiva", "Smart"]
+CASO_CONSECUTIVO = {
+    ("Esencial", "Básico"): 1,
+    ("Básico", "Operación Efectiva"): 2,
+    ("Operación Efectiva", "Smart"): 3,
+}
+
+def ruta_secuencial(n_act: str, n_obj: str):
+    i_act = NIVELES_ORDEN.index(n_act)
+    i_obj = NIVELES_ORDEN.index(n_obj)
+    if i_act == i_obj:
+        return []              # mismo nivel
+    if i_act > i_obj:
+        return None            # downgrade no permitido
+    return NIVELES_ORDEN[i_act:i_obj+1]
+
+def casos_desde_ruta(ruta: list[str]):
+    return [CASO_CONSECUTIVO[(a, b)] for a, b in zip(ruta, ruta[1:])]
 
 
             
 # Paso 3 de 4
 if st.session_state.step == 3:
-    st.header("Paso 3 de 4: Nivel de Automatización")
-    opciones_auto = [
-        "Sin automatización",
-        "Automatización básica PLC",
-        "Sistema de Control Distribuido (DCS)",
-        "Automatización avanzada con IA"
-    ]
-    seleccion_auto = st.radio("Seleccione el nivel de automatización:", opciones_auto)
-    st.session_state.nivel_auto = seleccion_auto
+#    st.header("Paso 3 de 4: Nivel de Automatización")
+    st.header("Paso 3 de 4: Nivel actual y objetivo")
+#    opciones_auto = [
+#        "Sin automatización",
+#        "Automatización básica PLC",
+#        "Sistema de Control Distribuido (DCS)",
+#        "Automatización avanzada con IA"
+#    ]
+#    seleccion_auto = st.radio("Seleccione el nivel de automatización:", opciones_auto)
+#    st.session_state.nivel_auto = seleccion_auto
+#
+#    col1, col2 = st.columns([1, 1])
+#    with col1:
+#        st.button("◀ Anterior", on_click=prev_step, key="prev3", type="secondary")
+#    with col2:
+#        if st.button("Siguiente ▶", key="next3", type="primary"):
+#            if not st.session_state.nivel_auto:
+#                st.warning("Por favor selecciona un nivel de automatización.")
+#            else:
+#                next_step()
+#                st.rerun()   
+ 
 
+    col1, col2 = st.columns(2)
+    with col1:
+        n_act = st.selectbox("Nivel actual", NIVELES_ORDEN, index=0, key="nivel_actual")
+    with col2:
+        n_obj = st.selectbox("Nivel objetivo", NIVELES_ORDEN, index=1, key="nivel_objetivo")
+
+    ruta = ruta_secuencial(n_act, n_obj)
+    siguiente_habilitado = True
+
+    # Apaga el toggle si cambiaste a algo distinto de Esencial→Smart
+    if st.session_state.get("usar_caso_4") and not (n_act == "Esencial" and n_obj == "Smart"):
+        st.session_state.usar_caso_4 = False
+
+    if ruta is None:
+        st.warning("No se permite una transición descendente. Selecciona un nivel objetivo igual o superior.")
+        siguiente_habilitado = False
+
+    elif len(ruta) == 0:
+        st.info("El nivel actual y el objetivo son iguales. Selecciona una transición distinta.")
+        siguiente_habilitado = False
+
+    else:
+        # Secuencia E→B→OE→S
+        casos = casos_desde_ruta(ruta)
+        st.session_state.ruta = ruta
+        st.session_state.casos = casos
+        st.session_state.caso = casos[0]  # compatibilidad
+
+        usar_c4 = False
+        if n_act == "Esencial" and n_obj == "Smart":
+            usar_c4 = st.toggle("Usar implementación conjunta (Caso 4)", key="usar_caso_4",
+                                value=st.session_state.get("usar_caso_4", False))
+
+        if usar_c4:
+            st.info("Has seleccionado **Caso 4** (CAPEX específico; no suma lineal de 1+2+3).")
+            st.session_state.casos = [4]
+            st.session_state.caso = 4
+        else:
+            st.success(f"Transición detectada: {' → '.join(ruta)}")
+            st.caption(f"Casos a ejecutar en orden: {', '.join(map(str, casos))}. (1→2→3).")
+
+        st.info("""
+        **Esencial** → Operación básica y segura, mínima automatización.  
+        **Básico** → Controles simples (PLC), mayor estabilidad.  
+        **Operación Efectiva** → Integración en DCS, eficiencia energética y operativa.  
+        **Smart** → Nivel avanzado con IA y analítica para optimización total.
+        """)
+
+
+
+    # ---------------- Botones ----------------
     col1, col2 = st.columns([1, 1])
     with col1:
         st.button("◀ Anterior", on_click=prev_step, key="prev3", type="secondary")
     with col2:
-        if st.button("Siguiente ▶", key="next3", type="primary"):
-            if not st.session_state.nivel_auto:
-                st.warning("Por favor selecciona un nivel de automatización.")
-            else:
-                next_step()
-                st.rerun()
+        clicked = st.button("Siguiente ▶", key="next3", type="primary", disabled=not siguiente_habilitado)
+        if clicked:
+            next_step()
+            st.rerun()
+
+
+
+
+
+
+ 
+
+# Paso 4 de 4
 
 # Paso 4 de 4
 if st.session_state.step == 4:
@@ -166,18 +335,174 @@ if st.session_state.step == 4:
             st.warning("Completa los campos técnicos iniciales.")
         st.session_state.mostrar_warning_tec = False  # Se limpia tras mostrarla
 
-    ventiladores_prim = st.number_input("Cantidad de ventiladores primarios:", min_value=0, max_value=20, step=1)
-    potencia_prim = st.number_input("Potencia promedio por ventilador primario(kW):", value=75.0)
-    ventiladores_comp = st.number_input("Cantidad de ventiladores complementarios:", min_value=0, max_value=20, step=1)
-    potencia_comp = st.number_input("Potencia promedio por ventilador complementario(kW):", value=1.5)
+    # --- Parámetros técnicos siempre visibles ---
+    ventiladores_prim = st.number_input("Cantidad de ventiladores primarios:", min_value=0, max_value=20, step=1,
+                                        value=st.session_state.get("ventiladores_prim", 0))
+    potencia_prim = st.number_input("Potencia promedio por ventilador primario(kW):",
+                                    value=st.session_state.get("potencia_prim", 75.0))
+    ventiladores_comp = st.number_input("Cantidad de ventiladores complementarios:", min_value=0, max_value=20, step=1,
+                                        value=st.session_state.get("ventiladores_comp", 0))
+    potencia_comp = st.number_input("Potencia promedio por ventilador complementario(kW):",
+                                    value=st.session_state.get("potencia_comp", 1.5))
 
     tarifa = st.selectbox("Costo de energía (USD/kWh):", [
-        "Mayor a 0.1", 
-        "Entre 0.076 a 0.1", 
+        "Mayor a 0.1",
+        "Entre 0.076 a 0.1",
         "Entre 0.05 a 0.075",
         "Menor a 0.05"
-    ])
+    ], index=["Mayor a 0.1","Entre 0.076 a 0.1","Entre 0.05 a 0.075","Menor a 0.05"].index(
+        st.session_state.get("tarifa","Mayor a 0.1"))
+    )
 
+    # --- Parámetros según caso ---
+    st.markdown("---")
+    st.subheader("Parámetros según caso")
+
+    _caso = st.session_state.get("caso", None)
+
+    # Defaults
+    _red_c1 = st.session_state.get("reduccion_c1_pct", 0.08)      # 8 %
+    _esquema = st.session_state.get("esquema_id", 2)              # 1..3
+    _red_baja = st.session_state.get("reduccion_baja_pct", 0.25)  # 25 %
+    _q_rel = st.session_state.get("q_rel_smart", 0.85)            # 85 %
+
+    if _caso == 1:
+        st.markdown("**Caso 1 • Reducción directa de velocidad**")
+        _red_c1 = st.slider(
+            "Reducción de velocidad inicial (%)",
+            min_value=1.0, max_value=10.0, value=_red_c1*100, step=0.5
+        ) / 100.0
+
+    elif _caso == 2:
+        st.markdown("**Caso 2 • Configurar: Horarios programados**")
+        st.caption(f"Este caso parte del resultado de Caso 1 usando reducción = {_red_c1*100:.0f} %")
+
+        # ====== estilos de las tarjetas / barras ======
+        st.markdown("""
+            <style>
+            .scheme-card {
+                border: 2px solid #e5e7eb; border-radius: 14px; padding: 12px 14px; background: #ffffff;
+                transition: box-shadow .2s ease, border-color .2s ease;
+            }
+            .scheme-card.selected { border-color: #2563eb; box-shadow: 0 4px 18px rgba(37,99,235,.15); }
+            .scheme-title { font-weight: 700; text-align: center; margin-bottom: 8px; }
+            .bar-wrap { width: 100%; height: 28px; background: #eef2f7; border-radius: 999px; overflow: hidden; display: flex; }
+            .bar-alta { background: #335b89; height: 100%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; }
+            .bar-baja { background: #dfe7f2; height: 100%; display:flex; align-items:center; justify-content:center; color:#1f2937; font-size:12px; }
+            .labels { display:flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color:#4b5563; }
+            </style>
+        """, unsafe_allow_html=True)
+
+        def scheme_card_html(num:int, selected:bool, alta_frac:float, baja_frac:float) -> str:
+            alta_pct = round(alta_frac*100)
+            baja_pct = 100 - alta_pct
+            return f"""
+                <div class="scheme-card {'selected' if selected else ''}">
+                    <div class="scheme-title">Esquema {num}</div>
+                    <div class="bar-wrap">
+                        <div class="bar-alta" style="width:{alta_pct}%" title="Alta {alta_pct}%">{alta_pct}%</div>
+                        <div class="bar-baja" style="width:{baja_pct}%" title="Baja {baja_pct}%">{baja_pct}%</div>
+                    </div>
+                    <div class="labels"><span>Alta</span><span>Baja</span></div>
+                </div>
+            """
+
+        # ====== render de las 3 tarjetas con selección ======
+        colS1, colS2, colS3 = st.columns(3)
+        for idx, col in enumerate([colS1, colS2, colS3], start=1):
+            with col:
+                col.markdown(
+                    scheme_card_html(
+                        num=idx,
+                        selected=(_esquema == idx),
+                        alta_frac=ESQUEMAS[idx]["alta"],
+                        baja_frac=ESQUEMAS[idx]["baja"],
+                    ),
+                    unsafe_allow_html=True
+                )
+                # botón de selección (ligero) bajo cada tarjeta
+                if st.button(f"Seleccionar esquema {idx}", key=f"pick_scheme_{idx}", use_container_width=True):
+                    _esquema = idx
+
+        st.write(f"Esquema seleccionado: **{_esquema}**  •  "
+                 f"Alta: **{int(ESQUEMAS[_esquema]['alta']*100)}%**  |  "
+                 f"Baja: **{int(ESQUEMAS[_esquema]['baja']*100)}%**")
+
+
+        # ====== persistencia en sesión ======
+        st.session_state.esquema_id = _esquema
+        st.session_state.reduccion_baja_pct = _red_baja
+
+    elif _caso == 3:
+        st.markdown("**Caso 3 • Sensorización / Smart**")
+
+        # --- estado persistente ---
+        base = float(st.session_state.get("c3_base", 0.85))   # valor "Base" por defecto
+        delta = float(st.session_state.get("c3_delta", 0.05)) # separación para Conservador/Optimista
+        use_custom = bool(st.session_state.get("c3_use_custom", False))
+
+        with st.expander("Opciones de preset (avanzado)", expanded=False):
+            use_custom = st.checkbox("Definir mi valor base", value=use_custom)
+            if use_custom:
+                base = st.number_input("Valor base (Qᵣₑₗ)", min_value=0.60, max_value=1.00, value=base, step=0.01, format="%.2f")
+                delta = st.number_input("Separación δ (±)", min_value=0.00, max_value=0.20, value=delta, step=0.01, format="%.2f")
+            st.session_state.c3_use_custom = use_custom
+
+        # clamp helper
+        def clamp(x, lo=0.60, hi=1.00): 
+            return max(lo, min(hi, x))
+
+        q_con = clamp(base + delta)
+        q_base = clamp(base)
+        q_opt  = clamp(base - delta)
+
+        # --- mostrar como etiquetas (no seleccionables) ---
+        st.caption("Valores de referencia (no seleccionables aquí):")
+        colA, colB, colC = st.columns(3)
+        pill_css = """
+            <div style="
+                display:flex; flex-direction:column; gap:6px; align-items:center;
+                background:#f3f4f6; border:1px solid #e5e7eb; border-radius:12px; padding:10px 12px; width:100%;
+            ">
+                <div style="font-weight:700;">{title}</div>
+                <div style="font-size:14px; color:#111827;">{val:.2f}</div>
+            </div>
+        """
+        with colA:
+            st.markdown(pill_css.format(title="Conservador", val=q_con), unsafe_allow_html=True)
+        with colB:
+            st.markdown(pill_css.format(title="Base",        val=q_base), unsafe_allow_html=True)
+        with colC:
+            st.markdown(pill_css.format(title="Optimista",   val=q_opt),  unsafe_allow_html=True)
+
+        st.caption("El caudal promedio se ajusta automáticamente según la demanda medida por sensores. Una menor fracción de caudal implica mayor ahorro (potencia ~ Q³).")
+
+        # --- persistir para usar en Paso 5 (gráficas por escenario) ---
+        st.session_state.c3_base  = base
+        st.session_state.c3_delta = delta
+        st.session_state.q_rel_conservador = q_con
+        st.session_state.q_rel_base        = q_base
+        st.session_state.q_rel_optimista   = q_opt
+
+        # Compatibilidad: si tu cálculo actual usa un único Qᵣₑₗ, toma el "Base"
+        st.session_state.q_rel_smart = q_base
+
+
+
+    elif _caso == 4:
+        with st.expander("Caso 4 • Implementación conjunta (C1+C2+C3)", expanded=False):
+            _red_c1 = st.slider("C1: Reducción velocidad (%)", 0.0, 20.0, _red_c1*100, 1.0)/100.0
+            _esquema = st.radio("C2: Esquema horario", [1,2,3], index=[1,2,3].index(_esquema), horizontal=True)
+            _red_baja = st.slider("C2: Reducción en baja (%)", 0.0, 40.0, _red_baja*100, 1.0)/100.0
+            _q_rel = st.slider("C3: Caudal relativo Smart (Qᵣₑₗ)", 0.60, 1.00, _q_rel, 0.01)
+
+    # Guardar en session_state
+    st.session_state.reduccion_c1_pct = _red_c1
+    st.session_state.esquema_id = _esquema
+    st.session_state.reduccion_baja_pct = _red_baja
+    st.session_state.q_rel_smart = _q_rel
+
+    # ---------------- Botones ----------------
     col1, col2 = st.columns([1, 1])
     with col1:
         st.button("◀ Anterior", on_click=prev_step, key="prev4", type="secondary")
@@ -197,13 +522,13 @@ if st.session_state.step == 4:
 
 
 
-# Resultado de análisis
 
-# Resultado de análisis
 
+# Resultado de análisis **************************************************************
+
+# ================== Paso 5: Resultado de análisis ==================
 if st.session_state.step == 5:
     st.header("Resultado del análisis :")
-
     import plotly.graph_objects as go
 
     def get_priority_color(index):
@@ -218,13 +543,23 @@ if st.session_state.step == 5:
         font-size: 80%;
     """
 
+    # --- columnas principales ---
     col1, col2 = st.columns([1, 1.2])
     with col1:
         st.subheader("Resumen de información")
         st.markdown(f"<div style='{card_line_style}'>• Tipo de mina: <b>{st.session_state.tipo_mina}</b></div>", unsafe_allow_html=True)
         st.markdown(f"<div style='{card_line_style}'>• Material extraído: <b>{st.session_state.tipo_material}</b></div>", unsafe_allow_html=True)
         st.markdown(f"<div style='{card_line_style}'>• Producción: <b>{st.session_state.produccion}</b></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='{card_line_style}'>• Nivel de automatización: <b>{st.session_state.nivel_auto}</b></div>", unsafe_allow_html=True)
+
+        # Niveles y caso
+        n_act = st.session_state.get("nivel_actual")
+        n_obj = st.session_state.get("nivel_objetivo")
+        caso  = st.session_state.get("caso")
+        if n_act: st.markdown(f"<div style='{card_line_style}'>• Nivel actual: <b>{n_act}</b></div>", unsafe_allow_html=True)
+        if n_obj: st.markdown(f"<div style='{card_line_style}'>• Nivel objetivo: <b>{n_obj}</b></div>", unsafe_allow_html=True)
+        if caso:  st.markdown(f"<div style='{card_line_style}'>• Caso detectado: <b>{caso}</b></div>", unsafe_allow_html=True)
+
+        # Parámetros técnicos
         st.markdown(f"<div style='{card_line_style}'>• Ventiladores primarios: <b>{st.session_state.ventiladores_prim}</b></div>", unsafe_allow_html=True)
         st.markdown(f"<div style='{card_line_style}'>• Potencia promedio (primarios): <b>{st.session_state.potencia_prim} kW</b></div>", unsafe_allow_html=True)
         st.markdown(f"<div style='{card_line_style}'>• Ventiladores complementarios: <b>{st.session_state.ventiladores_comp}</b></div>", unsafe_allow_html=True)
@@ -241,35 +576,16 @@ if st.session_state.step == 5:
                 </div>
             """, unsafe_allow_html=True)
 
-    # Cálculos de energía
+    # ================== Cálculos energéticos ==================
+    # Potencias y horas
     n_prim = st.session_state.ventiladores_prim
     p_prim = st.session_state.potencia_prim
     n_comp = st.session_state.ventiladores_comp
     p_comp = st.session_state.potencia_comp
-    pot_total_kw = (n_prim * p_prim) + (n_comp * p_comp)
-    horas_anuales = 8760
-    energia_actual = pot_total_kw * horas_anuales / 1000
+    p_tot  = (n_prim * p_prim) + (n_comp * p_comp)
+    horas_anuales = 8760.0
 
-    nivel = st.session_state.nivel_auto
-    if nivel == "Bajo":
-        velocidad_relativa = 0.92
-        factor_eficiencia = 0.8
-        inversion_inicial = 8000
-    elif nivel == "Medio":
-        velocidad_relativa = 0.90
-        factor_eficiencia = 1.0
-        inversion_inicial = 10000
-    else:
-        velocidad_relativa = 0.87
-        factor_eficiencia = 1.1
-        inversion_inicial = 12000
-
-    reduccion_pct = (1 - velocidad_relativa**3) * factor_eficiencia
-    reduccion_pct = min(reduccion_pct, 0.5)
-
-    energia_vod = energia_actual * (1 - reduccion_pct)
-    ahorro_energia = energia_actual - energia_vod
-
+    # Tarifa numérica
     tarifa_dict = {
         "Mayor a 0.1": 0.11,
         "Entre 0.076 a 0.1": 0.09,
@@ -277,91 +593,203 @@ if st.session_state.step == 5:
         "Menor a 0.05": 0.04
     }
     tarifa_real = tarifa_dict[st.session_state.tarifa]
-    ahorro_usd = ahorro_energia * 1000 * tarifa_real
-    ahorro_mensual = ahorro_usd / 12
 
-    # 🔰 Recomendación - Ahorro acumulado
-    st.markdown("""
+    # Parámetros de casos desde Paso 4
+    # C1: usamos 8% si no hay valor válido
+    r_c1_cfg = st.session_state.get("reduccion_c1_pct", 0.08)
+    try:
+        r_c1_val = float(r_c1_cfg)
+    except:
+        r_c1_val = 0.08
+    r_c1 = min(max(r_c1_val, 0.02), 0.30)  # forzar a rango sano (2%..30%)
+    esquema_id = int(st.session_state.get("esquema_id", 2))
+
+    # Caso 3 presets
+    def clamp(x, lo=0.60, hi=1.00): return max(lo, min(hi, x))
+    q_rel_con = st.session_state.get("q_rel_conservador")
+    q_rel_bas = st.session_state.get("q_rel_base")
+    q_rel_opt = st.session_state.get("q_rel_optimista")
+    if q_rel_con is None or q_rel_bas is None or q_rel_opt is None:
+        base = float(st.session_state.get("c3_base", 0.85))
+        delta = float(st.session_state.get("c3_delta", 0.05))
+        q_rel_con, q_rel_bas, q_rel_opt = clamp(base+delta), clamp(base), clamp(base-delta)
+
+    # -------- Funciones de cálculo (consistentes con Excel) --------
+    def energia_anual_mwh(p_kw: float, horas: float) -> float:
+        return (p_kw * horas) / 1000.0
+
+    def calc_caso1(E0_mwh: float, reduccion_pct: float, tarifa: float):
+        E1 = E0_mwh * (1 - reduccion_pct) ** 3
+        A1_mwh = max(E0_mwh - E1, 0.0)
+        A1_usd = A1_mwh * 1000.0 * tarifa
+        return E1, A1_mwh, A1_usd
+
+    # 👇 Caso 2: parte de E1 y pondera Alta/Baja; en baja vuelve a aplicar (1-r)^3
+    ESQUEMAS = {
+        1: {"alta": 0.50, "baja": 0.50},
+        2: {"alta": 0.83, "baja": 0.17},
+        3: {"alta": 0.79, "baja": 0.21},
+    }
+    def calc_caso2_desde_E1(E1_mwh: float, esquema_id: int, r: float, tarifa: float):
+        esq = ESQUEMAS.get(esquema_id, ESQUEMAS[2])
+        f_alta, f_baja = esq["alta"], esq["baja"]
+        E2 = E1_mwh * (f_alta + f_baja * (1.0 - r) ** 3)
+        A2_mwh = max(E1_mwh - E2, 0.0)
+        A2_usd = A2_mwh * 1000.0 * tarifa
+        return E2, A2_mwh, A2_usd
+
+    def calc_caso3(baseline_mwh: float, q_rel: float, tarifa: float):
+        E3 = baseline_mwh * (q_rel ** 3)
+        A3_mwh = max(baseline_mwh - E3, 0.0)
+        A3_usd = A3_mwh * 1000.0 * tarifa
+        return E3, A3_mwh, A3_usd
+
+    # Serie payback Excel-like
+    def serie_payback_excel_like(ahorro_anual_usd: float, capex_usd: float,
+                                 meses_impl: int = 6,
+                                 prr_meses=(1,3,5), prr_pct=(0.40,0.40,0.20),
+                                 meses: int = 24):
+        ahorro_mensual = ahorro_anual_usd / 12.0
+        flujo, acumulado, c = [], [], 0.0
+        for m in range(1, meses+1):
+            gasto = 0.0
+            for mm, pp in zip(prr_meses, prr_pct):
+                if capex_usd > 0 and m == mm:
+                    gasto += capex_usd * pp
+            ahorro = ahorro_mensual if m > meses_impl else 0.0
+            f = ahorro - gasto
+            flujo.append(f)
+            c += f
+            acumulado.append(c)
+        pb_mes = None
+        if capex_usd > 0:
+            for i, v in enumerate(acumulado):
+                if v >= 0:
+                    pb_mes = i+1
+                    break
+        return list(range(1, meses+1)), flujo, acumulado, pb_mes
+
+    # -------- Cálculo encadenado --------
+    E0 = energia_anual_mwh(p_tot, horas_anuales)
+    E1, A1_mwh, A1_usd = calc_caso1(E0, r_c1, tarifa_real)
+    E2, A2_mwh, A2_usd = calc_caso2_desde_E1(E1, esquema_id, r_c1, tarifa_real)
+    E3_base, A3_mwh_base, A3_usd_base = calc_caso3(E2, q_rel_bas, tarifa_real)
+
+    # Selección por caso
+    if caso == 1:
+        E_final = E1; ahorro_mwh_total = A1_mwh; ahorro_usd_total = A1_usd; nivel_vod = 1
+    elif caso == 2:
+        E_final = E2; ahorro_mwh_total = A1_mwh + A2_mwh; ahorro_usd_total = A1_usd + A2_usd; nivel_vod = 2
+    else:  # 3 ó 4
+        E_final = E3_base; ahorro_mwh_total = A1_mwh + A2_mwh + A3_mwh_base; ahorro_usd_total = A1_usd + A2_usd + A3_usd_base; nivel_vod = 3
+
+    # -------------------- CAPEX (con fallback por Caso) --------------------
+    total_vent = float(n_prim + n_comp)
+
+    # 1) Intentar por transición (nivel actual -> nivel objetivo)
+    capex_unit = None
+    if n_act is not None and n_obj is not None:
+        capex_unit = CAPEX_POR_VEN_DEFAULT.get((n_act, n_obj))
+
+    # 2) Fallback por Caso si no hay niveles o no hace match (ajusta a valores reales de tu Excel)
+    if capex_unit is None:
+        CAPEX_POR_VEN_POR_CASO = {1: 4000.0, 2: 7000.0, 3: 12000.0, 4: 20000.0}
+        capex_unit = CAPEX_POR_VEN_POR_CASO.get(caso, 0.0)
+
+    capex_total = float(capex_unit) * total_vent
+
+    # -------- Diagnóstico rápido --------
+    with st.expander("🔎 Diagnóstico de cálculo (ver valores)", expanded=False):
+        st.write({
+            "n_act": n_act, "n_obj": n_obj, "caso": caso,
+            "r_c1(%)": round(r_c1*100,2), "esquema_id": esquema_id,
+            "E0 (MWh)": round(E0,2), "E1 (MWh)": round(E1,2),
+            "E2 (MWh)": round(E2,2), "E3_base (MWh)": round(E3_base,2),
+            "ahorro_mwh_total": round(ahorro_mwh_total,2),
+            "ahorro_usd_total": round(ahorro_usd_total,2),
+            "capex_unit_usd/vent": float(capex_unit),
+            "total_vent": total_vent,
+            "CAPEX total": round(capex_total,2),
+        })
+
+    # ================== Recomendación ==================
+    st.markdown(f"""
     <div style='background-color:#DFF0D8; padding:15px; font-size:150%; font-weight:bold; text-align:center; border-radius:8px;'>
-    ✅ Recomendación: Implementar Ventilation On Demand (Nivel 1)
+    ✅ Recomendación: Implementar Ventilation On Demand (Nivel {nivel_vod})
     </div>
     """, unsafe_allow_html=True)
 
-    espacio, derecha = st.columns([3, 1])  # Espacio vacío a la izquierda
-
-    with derecha:
-        col_chk1, col_chk2 = st.columns([1, 1])
-        with col_chk1:
-            mostrar_opt = st.checkbox("Escenario optimista", value=False)
-        with col_chk2:
-            mostrar_con = st.checkbox("Escenario conservador", value=False)
-     
-    # Cálculo de ahorro económico
-    meses = list(range(1, 25))
-    ahorro_acumulado = [i * ahorro_mensual for i in meses]
-    ahorro_optimista = [x * 1.15 for x in ahorro_acumulado]
-    ahorro_conservador = [x * 0.85 for x in ahorro_acumulado]
-
-    payback_mes = next((i+1 for i, ahorro in enumerate(ahorro_acumulado) if ahorro >= inversion_inicial), None)
-
-    if payback_mes and payback_mes <= 12:
-        meses = list(range(1, 13))
-        ahorro_acumulado = [i * ahorro_mensual for i in meses]
-        ahorro_optimista = [x * 1.15 for x in ahorro_acumulado]
-        ahorro_conservador = [x * 0.85 for x in ahorro_acumulado]
-
-    # Gráfico consumo energético
+    # ================== Gráfico 1: Consumo anual ==================
     fig1 = go.Figure()
-    fig1.add_trace(go.Bar(name="Con control actual", x=["Total"], y=[energia_actual], marker_color="#d3d3d3"))
-    fig1.add_trace(go.Bar(name="Con ABB VoD", x=["Total"], y=[energia_vod], marker_color="#439889"))
-    fig1.add_shape(type="line", x0=-0.15, y0=energia_actual, x1=0.15, y1=energia_vod,
-                   line=dict(color="red", width=2, dash="dash"))
-    fig1.add_annotation(x=0, y=(energia_actual + energia_vod)/2,
-                        text=f"Ahorro {round(reduccion_pct*100)}%", showarrow=False,
-                        font=dict(size=12, color="red"), yshift=10)
-    fig1.update_layout(title="🔌 Consumo Energético Anual",
-                       yaxis_title="Energía (MWh)", xaxis_title="Sistema", barmode='group')
+    fig1.add_trace(go.Bar(name="Con control actual", x=["Total"], y=[E0], marker_color="#d3d3d3"))
+    fig1.add_trace(go.Bar(name=f"Con ABB VoD (Caso {caso})", x=["Total"], y=[E_final], marker_color="#439889"))
+    fig1.update_layout(title="🔌 Consumo Energético Anual", yaxis_title="Energía (MWh)", xaxis_title="Sistema", barmode='group')
 
-    # Gráfico ahorro económico
+    # ================== Gráfico 2: Ahorro Económico Acumulado (24m) ==================
+    # Parámetros estilo Excel (ajústalos si tu hoja usa otros)
+    MESES_IMPL_POR_CASO = {1: 3, 2: 4, 3: 6, 4: 6}   # tiempo de implementación por caso
+    PRR_MESES_DEFAULT   = (1, 3, 5)                 # meses de desembolso CAPEX
+    PRR_PCT_DEFAULT     = (0.40, 0.40, 0.20)        # % de desembolso CAPEX
+
+    # Permitir override desde session_state si más adelante agregas controles
+    meses_impl = st.session_state.get("meses_impl", MESES_IMPL_POR_CASO.get(caso, 6))
+    prr_meses  = st.session_state.get("prr_meses", PRR_MESES_DEFAULT)
+    prr_pct    = st.session_state.get("prr_pct",   PRR_PCT_DEFAULT)
+
+    # Curva del caso DETECTADO (solo el caso actual)
     fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(name="Ahorro acumulado", x=meses, y=ahorro_acumulado,
-                              mode="lines+markers", line=dict(color="#0072C6", width=3)))
-    fig2.add_trace(go.Scatter(name="Inversión inicial", x=[0] + meses,
-                              y=[inversion_inicial]*(len(meses)+1), mode="lines",
-                              line=dict(dash="dash", color="red")))
 
-    if mostrar_opt:
-        fig2.add_trace(go.Scatter(name="Escenario optimista", x=meses, y=ahorro_optimista,
-                                  mode="lines", line=dict(color="green", dash="dot")))
+    def curva_payback(ahorro_anual_usd: float, capex: float, meses_impl: int):
+        meses_lbl, _, acumulado, pb = serie_payback_excel_like(
+            ahorro_anual_usd, capex,
+            meses_impl=meses_impl, prr_meses=prr_meses, prr_pct=prr_pct, meses=24
+        )
+        return meses_lbl, acumulado, pb
 
-    if mostrar_con:
-        fig2.add_trace(go.Scatter(name="Escenario conservador", x=meses, y=ahorro_conservador,
-                                  mode="lines", line=dict(color="orange", dash="dot")))
+    meses_lbl, acumulado_base, pb_base = curva_payback(ahorro_usd_total, capex_total, meses_impl)
 
-    if payback_mes:
-        fig2.add_shape(type="line", x0=payback_mes, x1=payback_mes, y0=0,
-                       y1=max(ahorro_acumulado), line=dict(color="#439889", dash="dot"))
+    fig2.add_trace(go.Scatter(
+        name=f"Ahorro acumulado (Caso {caso})",
+        x=meses_lbl, y=acumulado_base,
+        mode="lines+markers",
+        line=dict(width=3)
+    ))
+
+    # Marca de inicio de ahorros y payback (si corresponde)
+    fig2.add_vline(x=meses_impl + 1, line=dict(color="gray", dash="dot"))
+    fig2.add_annotation(x=meses_impl + 1, y=0, text="Inicio de ahorros", showarrow=True, yshift=30)
+
+    if pb_base:
+        fig2.add_vline(x=pb_base, line=dict(color="#439889", dash="dot"))
+        fig2.add_annotation(x=pb_base, y=max(acumulado_base), text=f"Payback M{pb_base}", showarrow=True)
+
+    # Línea de inversión (solo si hay CAPEX)
+    if capex_total > 0:
         fig2.add_trace(go.Scatter(
-            x=meses[payback_mes-1:], y=[inversion_inicial]*len(meses[payback_mes-1:]),
-            mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip"
-        ))
-        fig2.add_trace(go.Scatter(
-            x=meses[payback_mes-1:], y=ahorro_acumulado[payback_mes-1:],
-            mode="lines", line=dict(width=0), fill='tonexty',
-            fillcolor="rgba(67, 152, 137, 0.2)", showlegend=False, hoverinfo="skip"
+            name="Inversión (CAPEX)",
+            x=[0] + meses_lbl,
+            y=[capex_total] * (len(meses_lbl) + 1),
+            mode="lines",
+            line=dict(dash="dash", color="red")
         ))
 
-    fig2.update_layout(title="💰 Ahorro Económico Acumulado",
-                       xaxis_title="Meses", yaxis_title="USD")
+    fig2.update_layout(
+        title="💰 Ahorro Económico Acumulado (24 meses)",
+        xaxis_title="Meses",
+        yaxis_title="USD",
+        legend=dict(orientation="h")
+    )
 
+    # Mostrar gráficos
     colg1, colg2 = st.columns(2)
     colg1.plotly_chart(fig1, use_container_width=True)
     colg2.plotly_chart(fig2, use_container_width=True)
 
-    if payback_mes:
-        st.success(f"💡 **Payback estimado**: mes {payback_mes}. Desde aquí, los ahorros superan la inversión.")
+    # Mensaje de payback si aplica
+    if pb_base:
+        st.success(f"💡 **Payback estimado**: mes {pb_base}. Desde aquí, los ahorros superan la inversión.")
 
-    # Indicadores
+    # ================== KPIs (Base) ==================
     card_style = """
         background-color: #f7f8f9;
         padding: 20px;
@@ -369,22 +797,20 @@ if st.session_state.step == 5:
         box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
         margin-bottom: 20px;
     """
-
     indicadores_vod = {
-        "Ahorro de energía anual": f"{ahorro_energia/1000:.1f} GWh",
-        "Consumo energético actual anual": f"{energia_actual/1000:.1f} GWh",
-        "Porcentaje de ahorro energético anual": f"{reduccion_pct*100:.1f} %"
+        "Ahorro de energía anual": f"{ahorro_mwh_total/1000:.1f} GWh",
+        "Consumo energético actual anual": f"{E0/1000:.1f} GWh",
+        "Porcentaje de ahorro energético anual": f"{(ahorro_mwh_total/E0*100):.1f} %"
     }
-
     indicadores_economicos = {
-        "Consumo con VoD anual": f"{energia_vod/1000:.1f} GWh",
-        "Ahorro económico anual": f"{ahorro_usd/1000:,.0f} K USD",
-        "Reducción de emisiones CO₂": f"{ahorro_energia * 0.3:.1f} t/año"
+        "Consumo con VoD anual": f"{E_final/1000:.1f} GWh",
+        "Ahorro económico anual": f"{ahorro_usd_total/1000:,.0f} K USD",
+        "Reducción de emisiones CO₂": f"{ahorro_mwh_total * 0.3:.1f} t/año"
     }
 
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("### Indicadores VoD")
+        st.markdown("### Indicadores VoD (Base)")
         for k, v in indicadores_vod.items():
             st.markdown(f"""
                 <div style="{card_style}">
@@ -393,7 +819,7 @@ if st.session_state.step == 5:
                 </div>
             """, unsafe_allow_html=True)
     with col2:
-        st.markdown("### Ahorro económico")
+        st.markdown("### Ahorro económico (Base)")
         for k, v in indicadores_economicos.items():
             st.markdown(f"""
                 <div style="{card_style}">
@@ -403,9 +829,9 @@ if st.session_state.step == 5:
             """, unsafe_allow_html=True)
 
     st.info("""
-    ✔️ **Simulación completa**  
-    Propuesta técnica y económica.  
-    Evaluación VoD con indicadores reales y personalizados.
+    ✔️ **Simulación completa**
+    Propuesta técnica y económica.
+    Evaluación VoD con indicadores Base y curva de payback por caso.
     """)
 
     colr1, colr2 = st.columns([1, 1])
@@ -416,4 +842,5 @@ if st.session_state.step == 5:
             st.rerun()
     with colr2:
         st.button("📧 Contactar a especialista ABB", key="contactar", type="primary")
+
 
