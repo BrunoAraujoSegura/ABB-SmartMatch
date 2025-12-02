@@ -420,6 +420,8 @@ def ems_ui_step3():
     b1, b2 = st.columns(2)
     with b1:
         if st.button("◀ Volver a priorización", use_container_width=True, key="ems_back_prior"):
+            st.session_state.ems_active = False
+            st.session_state.pop("ems_params", None)
             st.session_state.step = 2
             st.rerun()
     with b2:
@@ -1119,7 +1121,7 @@ if st.session_state.step == 2:
         st.markdown("<hr>", unsafe_allow_html=True)
 
     for idx, item in enumerate(st.session_state.prioridades):
-        color = ["🔴 Prioridad 1", "🟠 Prioridad 2", "🟡 Prioridad 3"]
+        color = ["🔴 Prioridad Alta", "🟠 Prioridad Media", "🟡 Prioridad Baja"]
         if idx < 3:
             st.markdown(
                 f"<span style='margin-left:10px;'>{item}: <b style='color:red'>{color[idx]}</b></span>",
@@ -1144,6 +1146,13 @@ CASO_CONSECUTIVO = {
     ("Esencial", "Básico"): 1,
     ("Básico", "Operación Efectiva"): 2,
     ("Operación Efectiva", "Smart"): 3,
+}
+
+CASO_A_TRANSICION = {
+    1: ("Esencial", "Básico"),
+    2: ("Básico", "Operación Efectiva"),
+    3: ("Operación Efectiva", "Smart"),
+    4: ("Esencial", "Smart"),  # por si luego lo usas
 }
 
 def ruta_secuencial(n_act: str, n_obj: str):
@@ -1184,8 +1193,13 @@ if st.session_state.step == 3:
         ems_ui_step3()
         st.stop()
 
+    # Si no estamos en EMS ni E-Trolley, forzamos VoD
+    st.session_state.ems_active = False
+    st.session_state.pop("ems_params", None)  # opcional, para limpiar parámetros EMS
+
     # Flujo VoD normal
     st.header("Paso 3 de 4: Nivel actual y objetivo")
+
 
     col1, col2 = st.columns(2)
     with col1:
@@ -1302,22 +1316,75 @@ if st.session_state.step == 4:
         ) / 100.0
 
     elif _caso == 2:
-        st.markdown("**Caso 2 • Configurar: Horarios programados**")
-        st.caption(f"Este caso parte del resultado de Caso 1 usando reducción = {_red_c1*100:.0f} %")
+        # ---- Título y explicación dinámica ----
+        st.markdown("**Caso 2 • Configurar: Horas en operación del ventilador**")
+
+        CASO_A_TRANSICION = {
+            1: ("Esencial", "Básico"),
+            2: ("Básico", "Operación Efectiva"),
+            3: ("Operación Efectiva", "Smart"),
+            4: ("Esencial", "Smart"),
+        }
+        nivel_desde, nivel_hasta = CASO_A_TRANSICION.get(2, ("Esencial", "Básico"))
+
+        st.caption(
+            f"A partir del nivel de automatización **{nivel_desde} → {nivel_hasta}** "
+            f"se usa una reducción de **{_red_c1*100:.0f}%** en la operación.  \n"
+            "Selecciona cuál opción representa las **horas en operación del ventilador**."
+        )
 
         # ====== estilos de las tarjetas / barras ======
         st.markdown("""
             <style>
             .scheme-card {
-                border: 2px solid #e5e7eb; border-radius: 14px; padding: 12px 14px; background: #ffffff;
+                border: 2px solid #e5e7eb;
+                border-radius: 14px;
+                padding: 12px 14px;
+                background: #ffffff;
                 transition: box-shadow .2s ease, border-color .2s ease;
             }
-            .scheme-card.selected { border-color: #2563eb; box-shadow: 0 4px 18px rgba(37,99,235,.15); }
-            .scheme-title { font-weight: 700; text-align: center; margin-bottom: 8px; }
-            .bar-wrap { width: 100%; height: 28px; background: #eef2f7; border-radius: 999px; overflow: hidden; display: flex; }
-            .bar-alta { background: #335b89; height: 100%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; }
-            .bar-baja { background: #dfe7f2; height: 100%; display:flex; align-items:center; justify-content:center; color:#1f2937; font-size:12px; }
-            .labels { display:flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color:#4b5563; }
+            .scheme-card.selected {
+                border-color: #2563eb;
+                box-shadow: 0 4px 18px rgba(37,99,235,.15);
+            }
+            .scheme-title {
+                font-weight: 700;
+                text-align: center;
+                margin-bottom: 8px;
+            }
+            .bar-wrap {
+                width: 100%;
+                height: 28px;
+                background: #eef2f7;
+                border-radius: 999px;
+                overflow: hidden;
+                display: flex;
+            }
+            .bar-alta {
+                background: #335b89;
+                height: 100%;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                color:#fff;
+                font-size:12px;
+            }
+            .bar-baja {
+                background: #dfe7f2;
+                height: 100%;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                color:#1f2937;
+                font-size:12px;
+            }
+            .labels {
+                display:flex;
+                justify-content: space-between;
+                margin-top: 6px;
+                font-size: 12px;
+                color:#4b5563;
+            }
             </style>
         """, unsafe_allow_html=True)
 
@@ -1328,8 +1395,10 @@ if st.session_state.step == 4:
                 <div class="scheme-card {'selected' if selected else ''}">
                     <div class="scheme-title">Esquema {num}</div>
                     <div class="bar-wrap">
-                        <div class="bar-alta" style="width:{alta_pct}%" title="Alta {alta_pct}%">{alta_pct}%</div>
-                        <div class="bar-baja" style="width:{baja_pct}%" title="Baja {baja_pct}%">{baja_pct}%</div>
+                        <div class="bar-alta" style="width:{alta_pct}%"
+                             title="Alta {alta_pct}%">{alta_pct}%</div>
+                        <div class="bar-baja" style="width:{baja_pct}%"
+                             title="Baja {baja_pct}%">{baja_pct}%</div>
                     </div>
                     <div class="labels"><span>Alta</span><span>Baja</span></div>
                 </div>
@@ -1348,18 +1417,19 @@ if st.session_state.step == 4:
                     ),
                     unsafe_allow_html=True
                 )
-                # botón de selección (ligero) bajo cada tarjeta
                 if st.button(f"Seleccionar esquema {idx}", key=f"pick_scheme_{idx}", use_container_width=True):
                     _esquema = idx
 
-        st.write(f"Esquema seleccionado: **{_esquema}**  •  "
-                 f"Alta: **{int(ESQUEMAS[_esquema]['alta']*100)}%**  |  "
-                 f"Baja: **{int(ESQUEMAS[_esquema]['baja']*100)}%**")
-
+        st.write(
+            f"Esquema seleccionado: **{_esquema}**  •  "
+            f"Alta: **{int(ESQUEMAS[_esquema]['alta']*100)}%**  |  "
+            f"Baja: **{int(ESQUEMAS[_esquema]['baja']*100)}%**"
+        )
 
         # ====== persistencia en sesión ======
         st.session_state.esquema_id = _esquema
         st.session_state.reduccion_baja_pct = _red_baja
+   
 
     elif _caso == 3:
         st.markdown("**Caso 3 • Sensorización / Smart**")
@@ -1496,13 +1566,29 @@ if st.session_state.step == 5:
 
     with col2:
         st.subheader("Desafíos seleccionados")
+
+        etiquetas_prioridad = [
+            "🔴 Prioridad Alta",
+            "🟠 Prioridad Media",
+            "🟡 Prioridad Baja"
+        ]
+
         for idx, d in enumerate(st.session_state.prioridades[:3]):
             bg_color = get_priority_color(idx)
+            etiqueta = etiquetas_prioridad[idx] if idx < len(etiquetas_prioridad) else f"Prioridad {idx+1}"
+
             st.markdown(f"""
-                <div style="background-color: {bg_color}; padding: 10px 15px; border-radius: 8px; margin-bottom: 8px; font-size: 80%;">
-                    {idx + 1}. {d}
+                <div style="
+                    background-color: {bg_color};
+                    padding: 10px 15px;
+                    border-radius: 8px;
+                    margin-bottom: 8px;
+                    font-size: 80%;
+                ">
+                    <b>{etiqueta}:</b> {d}
                 </div>
             """, unsafe_allow_html=True)
+
 
     # ================== Cálculos energéticos ==================
     # Potencias y horas
@@ -1647,11 +1733,68 @@ if st.session_state.step == 5:
     </div>
     """, unsafe_allow_html=True)
 
-    # ================== Gráfico 1: Consumo anual ==================
+     # ================== Gráfico 1: Consumo anual ==================
+    # Convertimos todo a GWh
+    E0_gwh      = E0 / 1000.0
+    E_final_gwh = E_final / 1000.0
+    delta_gwh   = E0_gwh - E_final_gwh
+    pct_ahorro  = (delta_gwh / E0_gwh * 100.0) if E0_gwh > 0 else 0.0
+
     fig1 = go.Figure()
-    fig1.add_trace(go.Bar(name="Con control actual", x=["Total"], y=[E0], marker_color="#d3d3d3"))
-    fig1.add_trace(go.Bar(name=f"Con ABB VoD (Caso {caso})", x=["Total"], y=[E_final], marker_color="#439889"))
-    fig1.update_layout(title="🔌 Consumo Energético Anual", yaxis_title="Energía (MWh)", xaxis_title="Sistema", barmode='group')
+
+    # Barra 1: control actual
+    fig1.add_trace(go.Bar(
+        name="Con control actual",
+        x=["Total"],
+        y=[E0_gwh],
+        marker_color="#d3d3d3",
+        text=[f"{E0_gwh:.2f} GWh"],
+        textposition="inside"
+    ))
+
+    # Barra 2: VoD
+    fig1.add_trace(go.Bar(
+        name=f"Con ABB VoD (Caso {caso})",
+        x=["Total"],
+        y=[E_final_gwh],
+        marker_color="#439889",
+        text=[f"{E_final_gwh:.2f} GWh"],
+        textposition="inside"
+    ))
+
+    # Línea entre los centros superiores de ambas barras (en GWh)
+    fig1.add_shape(
+        type="line",
+        xref="paper", yref="y",
+        x0=0.25, y0=E0_gwh,
+        x1=0.75, y1=E_final_gwh,
+        line=dict(color="black", width=2)
+    )
+
+    # Etiqueta en el medio de la línea: % y GWh
+    fig1.add_annotation(
+        xref="paper", yref="y",
+        x=0.5,
+        y=(E0_gwh + E_final_gwh) / 2,
+        text=f"-{pct_ahorro:.1f}% ({delta_gwh:.2f} GWh)",
+        showarrow=True,
+        arrowhead=2,
+        ax=0,
+        ay=-40
+    )
+
+    # 👉 centra texto dentro de cada barra
+    fig1.update_traces(
+        textposition="inside",
+        insidetextanchor="middle"
+    )
+
+    fig1.update_layout(
+        title="🔌 Consumo Energético Anual",
+         yaxis_title="Energía (GWh)",
+        xaxis_title="Sistema",
+        barmode='group'
+    )
 
     # ================== Gráfico 2: Ahorro Económico Acumulado (24m) ==================
     # Parámetros estilo Excel (ajústalos si tu hoja usa otros)
@@ -1691,15 +1834,44 @@ if st.session_state.step == 5:
         fig2.add_vline(x=pb_base, line=dict(color="#439889", dash="dot"))
         fig2.add_annotation(x=pb_base, y=max(acumulado_base), text=f"Payback M{pb_base}", showarrow=True)
 
-    # Línea de inversión (solo si hay CAPEX)
-    if capex_total > 0:
-        fig2.add_trace(go.Scatter(
-            name="Inversión (CAPEX)",
-            x=[0] + meses_lbl,
-            y=[capex_total] * (len(meses_lbl) + 1),
-            mode="lines",
-            line=dict(dash="dash", color="red")
-        ))
+    # === CAPEX inicial (primer desembolso) como rectángulo pequeño ===
+    if capex_total > 0 and acumulado_base:
+        # Valor acumulado en el mes 1 = primer desembolso (negativo)
+        y_capex = acumulado_base[0]          # ej. -22,400 si es 40% de 56,000
+        primer_capex = abs(y_capex)          # magnitud del primer desembolso
+
+        # Altura del rectángulo = 25% de ese primer desembolso
+        mag = primer_capex
+        banda = mag * 0.25                   # rectángulo más delgado
+
+        # Rectángulo pegado al valor real (parte baja) y más delgado hacia arriba
+        y1 = y_capex                         # parte inferior = valor real (negativo)
+        y0 = y_capex + banda                 # parte superior, más cerca de 0
+
+        # Rectángulo ligeramente a la izquierda del mes 1
+        fig2.add_shape(
+            type="rect",
+            xref="x",
+            yref="y",
+            x0=0.3,       # más a la izquierda de M1
+            x1=0.9,
+            y0=y0,
+            y1=y1,
+            fillcolor="rgba(255,136,0,0.30)",
+            line=dict(color="rgba(255,80,0,1)", width=2),
+            layer="above"
+        )
+
+        # Etiqueta centrada en el rectángulo, mostrando el primer desembolso en kUSD
+        fig2.add_annotation(
+            x=0.6,
+            y=(y0 + y1) / 2.0,
+            text=f"Inicial 40% \nUSD {primer_capex/1000:,.0f}k",
+            showarrow=False,
+            font=dict(size=12, color="black"),
+            align="left"
+        )
+
 
     fig2.update_layout(
         title="💰 Ahorro Económico Acumulado (24 meses)",
