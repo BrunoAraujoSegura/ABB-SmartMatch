@@ -291,111 +291,175 @@ def get_diesel_l_km_subida(model: str) -> float:
 #EMS:
 # ===================== EMS (PASO 3 y PASO 4) =====================
 
+# ===================== EMS (PASO 3 y PASO 4) =====================
+
+# ===================== EMS (PASO 3 y PASO 4) =====================
+
 def ems_ui_step3():
     st.header("Paso 3 de 4: Energy Management System — Parámetros del caso")
-    st.caption("Complete los parámetros para evaluar el caso EMS.")
+    st.caption("Caso de referencia basado en el ejemplo de Excel (puedes ajustar todos los valores).")
 
+    # ---------- Parámetros generales ----------
     col1, col2 = st.columns(2)
     with col1:
-        disponibilidad = st.number_input("Disponibilidad promedio (%)", 0.0, 100.0, 95.0, 0.5) / 100.0
-        precio_kwh     = st.number_input("Precio energía (USD/kWh)", 0.01, 5.00, 0.05, 0.01)
-        ahorro_opt_pct = st.number_input("Ahorro estimado optimista (%)", 1.0, 30.0, 10.0, 0.5) / 100.0
-        ahorro_mod_pct = st.number_input("Ahorro estimado moderado (%)", 1.0, 30.0, 5.0, 0.5) / 100.0
+        # Excel: 95% disponibilidad, 0.05 USD/kWh
+        disponibilidad = st.number_input(
+            "Disponibilidad promedio (%)",
+            0.0, 100.0,
+            95.0,
+            0.5
+        ) / 100.0
+
+        precio_kwh = st.number_input(
+            "Precio energía (USD/kWh)",
+            0.01, 5.00,
+            0.05,
+            0.01
+        )
+
+        # Excel: 10% optimista, 5% moderado
+        ahorro_opt_pct = st.number_input(
+            "Ahorro estimado optimista (%)",
+            1.0, 30.0,
+            10.0,
+            0.5
+        ) / 100.0
+
+        ahorro_mod_pct = st.number_input(
+            "Ahorro estimado moderado (%)",
+            1.0, 30.0,
+            5.0,
+            0.5
+        ) / 100.0
+
     with col2:
-        # Entrada visible en KUSD; se guarda en USD
-        inversion_kusd = st.number_input("Inversión estimada del EMS (kUSD)", 0.0, 50_000.0, 700.0, 10.0)
-        inversion_usd  = inversion_kusd * 1000.0
+        # Excel: costo EF de referencia 700 kUSD
+        inversion_kusd = st.number_input(
+            "Inversión estimada del EMS (kUSD)",
+            0.0, 5_000.0,
+            700.0,
+            10.0
+        )
+        inversion_usd = inversion_kusd * 1000.0
+
         _ = st.checkbox("Incluir subprocesos secundarios", value=True)
         _ = st.number_input("Peso relativo de subprocesos (%)", 0.0, 50.0, 5.0, 0.5)
 
     st.markdown("---")
     st.subheader("Áreas / procesos a monitorear")
 
-    # Catálogo base
+    # ---------- Catálogo base (caso Excel) ----------
+    # Potencia MW (EA) y QTY exactamente como en tu hoja:
+    # Primary 0.8x2; Overland 0.4x3; SAG 24x2; Ball 16.4x2; ISA 0.2x3 (1+2)
     base_catalog = {
         "Primary Crusher":   {"mw": 0.8,  "qty": 2},
         "Overland Conveyor": {"mw": 0.4,  "qty": 3},
         "SAG Mill":          {"mw": 24.0, "qty": 2},
         "Ball Mill":         {"mw": 16.4, "qty": 2},
-        "ISA Mill M3000":    {"mw": 0.2,  "qty": 1},
+        "ISA Mill M3000":    {"mw": 0.2,  "qty": 3},  # 0.2 MW x 3 = 0.6 MW total (dos filas del Excel)
     }
 
-    # Selección múltiple
-    opciones = list(base_catalog.keys())
-    sel = st.multiselect(
-        "Elige qué áreas monitorear",
-        opciones,
-        default=opciones,
-        help="Puedes agregar/quitar procesos según tu alcance de EMS."
-    )
+    # CSS para que el checkbox parezca círculo tipo “radio”
+    st.markdown("""
+        <style>
+        .ems-area-row {
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+        }
+        .ems-area-row:hover {
+            border-color: #d1d5db;
+        }
+        /* hace circulares los checkboxes de esta sección */
+        div[data-testid="stCheckbox"] input[type="checkbox"] {
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-    # Estado editable por proceso
+    # ---------- Estado en sesión ----------
     if "ems_procs" not in st.session_state:
-        st.session_state.ems_procs = base_catalog.copy()
-
-    # Asegura que existan entradas para las selecciones actuales
-    for k in sel:
-        if k not in st.session_state.ems_procs:
-            st.session_state.ems_procs[k] = base_catalog[k]
-
-    # Escala de barras: usa solo los seleccionados
-    if sel:
-        max_mw = max(st.session_state.ems_procs[k]["mw"] for k in sel) or 1.0
+        # Inicializa con el catálogo base + flag expanded=True
+        st.session_state.ems_procs = {
+            k: {"mw": v["mw"], "qty": v["qty"], "expanded": True}
+            for k, v in base_catalog.items()
+        }
     else:
-        max_mw = 1.0
+        # Asegura que todas las claves del catálogo existan
+        for k, v in base_catalog.items():
+            st.session_state.ems_procs.setdefault(
+                k, {"mw": v["mw"], "qty": v["qty"], "expanded": True}
+            )
+        # Compatibilidad con versión anterior que usaba "enabled"
+        for k, data in st.session_state.ems_procs.items():
+            if "expanded" not in data:
+                data["expanded"] = data.get("enabled", True)
 
-    # Render de tarjetas (3 por fila) con barra de potencia relativa
-    cols_per_row = 3
-    for i in range(0, len(sel), cols_per_row):
-        row = sel[i:i + cols_per_row]
-        col_objs = st.columns(len(row))
-        for c, nombre in zip(col_objs, row):
-            with c:
-                data = st.session_state.ems_procs[nombre]
-                mw  = st.number_input(f"{nombre} — Potencia MW (EA)", 0.0, 200.0, float(data["mw"]), 0.1, key=f"mw_{nombre}")
-                qty = st.number_input("Cantidad (QTY)", 0, 20, int(data["qty"]), 1, key=f"qty_{nombre}")
+    # ---------- UI por área: círculo SOLO para expandir/colapsar ----------
+    for nombre in base_catalog.keys():
+        data = st.session_state.ems_procs[nombre]
+        expanded_default = data.get("expanded", True)
 
-                # Guarda cambios
-                st.session_state.ems_procs[nombre]["mw"]  = mw
+        with st.container():
+            st.markdown('<div class="ems-area-row">', unsafe_allow_html=True)
+
+            # fila principal: círculo + nombre
+            col_a = st.columns([1])[0]
+            with col_a:
+                expanded = st.checkbox(
+                    nombre,
+                    key=f"ems_sel_{nombre}",
+                    value=expanded_default
+                )
+            st.session_state.ems_procs[nombre]["expanded"] = expanded
+
+            # si está "marcado", mostramos potencia y cantidad (pero SIEMPRE entra al cálculo)
+            if expanded:
+                col_mw, col_qty = st.columns(2)
+                with col_mw:
+                    mw = st.number_input(
+                        "Potencia MW (EA)",
+                        0.0, 200.0,
+                        float(data["mw"]),
+                        0.1,
+                        key=f"mw_{nombre}"
+                    )
+                with col_qty:
+                    qty = st.number_input(
+                        "Cantidad (QTY)",
+                        0, 20,
+                        int(data["qty"]),
+                        1,
+                        key=f"qty_{nombre}"
+                    )
+                st.session_state.ems_procs[nombre]["mw"] = mw
                 st.session_state.ems_procs[nombre]["qty"] = qty
 
-                # Barra de potencia relativa
-                pct = min(100.0, (mw / max_mw) * 100.0)
-                bar_html = f"""
-                <div style="
-                    width:85%;
-                    background:#f3f4f6;
-                    border-radius:6px;
-                    height:8px;
-                    margin-top:6px;
-                    margin-bottom:4px;
-                    overflow:hidden;">
-                    <div style="
-                        width:{pct:.1f}%;
-                        height:8px;
-                        background:#e30613;
-                        transition:width 0.4s ease;">
-                    </div>
-                </div>
-                """
-                st.markdown(bar_html, unsafe_allow_html=True)
-                st.caption(f"Potencia relativa ({pct:.0f}%)")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------- Resumen y cálculos --------
-    import pandas as pd
-    df = pd.DataFrame(
-        [{"Área / Proceso": k,
-          "Potencia MW (EA)": st.session_state.ems_procs[k]["mw"],
-          "Cantidad (QTY)":   st.session_state.ems_procs[k]["qty"]}
-         for k in sel]
-    )
-    if df.empty:
+    # ---------- Resumen y cálculos (TODAS las áreas cuentan) ----------
+    if st.session_state.ems_procs:
+        df = pd.DataFrame(
+            [{
+                "Área / Proceso": k,
+                "Potencia MW (EA)": v["mw"],
+                "Cantidad (QTY)":   v["qty"],
+            } for k, v in st.session_state.ems_procs.items()]
+        )
+    else:
         df = pd.DataFrame(columns=["Área / Proceso", "Potencia MW (EA)", "Cantidad (QTY)"])
 
     df["SubTotal MW"] = df["Potencia MW (EA)"] * df["Cantidad (QTY)"]
     df["Disponibilidad"] = disponibilidad
-    df["Costo Energía (USD/año)"] = df["SubTotal MW"] * 8760 * disponibilidad * precio_kwh
+    df["Costo Energía (USD/año)"] = (
+    df["SubTotal MW"] * 1000 * 8760 * disponibilidad * precio_kwh
+    )
 
+    
     total_cost = float(df["Costo Energía (USD/año)"].sum()) if not df.empty else 0.0
     ahorro_opt = total_cost * ahorro_opt_pct
     ahorro_mod = total_cost * ahorro_mod_pct
@@ -407,15 +471,16 @@ def ems_ui_step3():
         height=min(300, 60 + 28 * max(1, len(df)))
     )
 
-    colA, colB = st.columns(2)
-    colA.metric("Costo total de energía (año)", f"KUSD {total_cost/1000:,.0f}")
-    colB.metric("Costo con EMS (optimista)", f"KUSD {(total_cost - ahorro_opt)/1000:,.0f}")
+  #  colA, colB = st.columns(2)
+  #  colA.metric("Costo total de energía (año)", f"KUSD {total_cost/1000:,.0f}")
+  #  colB.metric("Costo con EMS (optimista)", f"KUSD {(total_cost - ahorro_opt)/1000:,.0f}")
 
-    st.markdown("---")
-    colC, colD = st.columns(2)
-    colC.metric("Ahorro anual (optimista)", f"KUSD {ahorro_opt/1000:,.0f}")
-    colD.metric("Ahorro anual (moderado)", f"KUSD {ahorro_mod/1000:,.0f}")
+  #  st.markdown("---")
+  #  colC, colD = st.columns(2)
+  #  colC.metric("Ahorro anual (optimista)", f"KUSD {ahorro_opt/1000:,.0f}")
+  #  colD.metric("Ahorro anual (moderado)", f"KUSD {ahorro_mod/1000:,.0f}")
 
+    # ---------- Navegación ----------
     st.markdown("---")
     b1, b2 = st.columns(2)
     with b1:
@@ -428,20 +493,26 @@ def ems_ui_step3():
         if st.button("Calcular rentabilidad ▶", type="primary", use_container_width=True, key="ems_go_calc"):
             st.session_state.ems_active = True
             st.session_state.ems_params = dict(
-                total_cost = total_cost,
-                ahorro_opt = float(ahorro_opt),
-                ahorro_mod = float(ahorro_mod),
-                inversion  = float(inversion_usd),
+                total_cost=total_cost,
+                ahorro_opt=float(ahorro_opt),
+                ahorro_mod=float(ahorro_mod),
+                inversion=float(inversion_usd),
             )
-            st.session_state.step = 4  # va al Paso 4 (EMS)
+            st.session_state.step = 4  # Va al Paso 4 (EMS) donde usas ems_ui_step4()
             st.rerun()
 
 
+
 def ems_ui_step4():
+    import numpy as np
+    import plotly.graph_objects as go
+
     st.header("Paso 4 de 4: Energy Management System — Cálculo de Rentabilidad")
+
+    # Parámetros calculados en el Paso 3
     P = st.session_state.get("ems_params", {})
     if not P:
-        st.warning("Primero complete el Paso 3 (EMS — Parámetros del caso).")
+        st.warning("Primero completa el Paso 3 (EMS — Parámetros del caso).")
         if st.button("Volver a EMS — Parámetros", use_container_width=True, key="ems_go_back_p3"):
             st.session_state.step = 3
             st.rerun()
@@ -451,50 +522,173 @@ def ems_ui_step4():
     ahorro_mod = float(P["ahorro_mod"])
     inversion  = float(P["inversion"])
 
-    # Flujo mensual estilo Excel: CAPEX en meses 1, 3 y 5 (40/40/20), ahorro desde el mes 7
-    meses = list(range(1, 25))  # 24 meses
-    flujo_opt = [0.0]*24
-    flujo_mod = [0.0]*24
+    # ========= BLOQUE: RESUMEN DE INFORMACIÓN (igual estilo que VoD / E-Trolley) =========
+    st.markdown("### Resultado del análisis :")
 
-    # CAPEX (1,3,5) = 40%,40%,20%
-    prr = {1: 0.40, 3: 0.40, 5: 0.20}
+    card_line_style = """
+        background-color: #f7f8f9;
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        font-size: 80%;
+    """
+
+    def _get_priority_color(idx: int) -> str:
+        colores = ["#fbeaea", "#fff3e0", "#fffde7"]
+        return colores[idx] if idx < len(colores) else "#f7f8f9"
+
+    etiquetas_prioridad = [
+        "🔴 Prioridad Alta",
+        "🟠 Prioridad Media",
+        "🟡 Prioridad Baja"
+    ]
+
+    col1, col2 = st.columns([1, 1.2])
+
+    # ---- Columna izquierda: resumen de datos base ----
+    with col1:
+        st.subheader("Resumen de información")
+
+        tipo_mina      = st.session_state.get("tipo_mina", "—")
+        tipo_material  = st.session_state.get("tipo_material", "—")
+        produccion     = st.session_state.get("produccion", "—")
+
+        st.markdown(f"<div style='{card_line_style}'>• Tipo de mina: <b>{tipo_mina}</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='{card_line_style}'>• Material extraído: <b>{tipo_material}</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='{card_line_style}'>• Producción: <b>{produccion}</b></div>", unsafe_allow_html=True)
+       # st.markdown(f"• **Disponibilidad promedio:** {st.session_state.ems_disponibilidad:.2f} %")
+       # st.markdown(f"• **Precio energía:** {st.session_state.ems_precio_energia:.3f} USD/kWh")
+       # st.markdown(f"• **Ahorro estimado optimista:** {st.session_state.ems_ahorro_opt:.2f} %")
+       # st.markdown(f"• **Ahorro estimado moderado:** {st.session_state.ems_ahorro_mod:.2f} %")
+       # st.markdown(f"• **Inversión estimada EMS:** {st.session_state.ems_inversion:.1f} kUSD")
+    # ---- Columna derecha: desafíos seleccionados ----
+    with col2:
+        st.subheader("Desafíos seleccionados")
+
+        prioridades = st.session_state.get("prioridades", [])
+        for idx, d in enumerate(prioridades[:3]):
+            bg_color = _get_priority_color(idx)
+            etiqueta = etiquetas_prioridad[idx] if idx < len(etiquetas_prioridad) else f"Prioridad {idx+1}"
+
+            st.markdown(f"""
+                <div style="
+                    background-color: {bg_color};
+                    padding: 10px 15px;
+                    border-radius: 8px;
+                    margin-bottom: 8px;
+                    font-size: 80%;
+                ">
+                    <b>{etiqueta}:</b> {d}
+                </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # ========= BLOQUE: INDICADORES ESTILO E-TROLLEY =========
+
+    def _fmt_short(x: float, decimals: int = 1) -> str:
+        x = float(x); a = abs(x)
+        if a >= 1e9: return f"{x/1e9:.{decimals}f} B"
+        if a >= 1e6: return f"{x/1e6:.{decimals}f} M"
+        if a >= 1e3: return f"{x/1e3:.0f} K"
+        return f"{x:,.0f}"
+
+    # Flujo mensual para payback (misma lógica que el Excel):
+    # CAPEX 40/40/20 en meses 1,3,5 y ahorros desde el mes 7
+    meses = list(range(1, 25))
+    flujo_opt = [0.0] * 24
+    flujo_mod = [0.0] * 24
+
+    prr = {1: 0.40, 3: 0.40, 5: 0.20}  # CAPEX 40/40/20 en meses 1,3,5
+
     for m, frac in prr.items():
         flujo_opt[m-1] -= inversion * frac
         flujo_mod[m-1] -= inversion * frac
 
-    # Ahorros desde M7
-    for i in range(6, 24):
-        flujo_opt[i] += ahorro_opt/12.0
-        flujo_mod[i] += ahorro_mod/12.0
+    for i in range(6, 24):  # desde M7 ahorros
+        flujo_opt[i] += ahorro_opt / 12.0
+        flujo_mod[i] += ahorro_mod / 12.0
 
     acum_opt = list(np.cumsum(flujo_opt))
     acum_mod = list(np.cumsum(flujo_mod))
 
-    # KPIs
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Inversión total", f"USD {inversion:,.0f}")
-    col2.metric("Ahorro anual (optimista)", f"KUSD {ahorro_opt/1000:,.0f}")
-    col3.metric("Ahorro anual (moderado)", f"KUSD {ahorro_mod/1000:,.0f}")
-
     def _payback(acum):
         for i, v in enumerate(acum, start=1):
-            if v >= 0: return i
+            if v >= 0:
+                return i
         return None
+
     pb_opt = _payback(acum_opt)
     pb_mod = _payback(acum_mod)
-    if pb_opt:
-        st.success(f"Payback (optimista): **Mes {pb_opt}**")
-    if pb_mod:
-        st.info(f"Payback (moderado): **Mes {pb_mod}**")
 
-    # Gráfica
+    # ---- Tarjetas tipo KPI (3 columnas, estilo E-Trolley) ----
+    st.subheader("Resultados económicos del EMS")
+
+    valor_opt = f"USD {_fmt_short(ahorro_opt,1)}"
+    valor_mod = f"USD {_fmt_short(ahorro_mod,1)}"
+    valor_inv = f"USD {_fmt_short(inversion,1)}"
+
+    delta_opt = f"Payback optimista: M{pb_opt}" if pb_opt else ""
+    delta_mod = f"Payback moderado: M{pb_mod}" if pb_mod else ""
+    delta_inv = "Inversión inicial referencial"
+
+    colA, colB, colC = st.columns(3)
+
+    kpi_style = """
+        <div style="
+            background-color:#f5f5f5;
+            border-radius:12px;
+            padding:18px 16px;
+            text-align:center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        ">
+            <h2 style="margin:0; font-weight:700; color:#000;">{valor}</h2>
+            <p style="margin:0; color:#555; font-size:15px;">{subtitulo}</p>
+            <p style="margin-top:5px; color:#008000; font-size:13px;">{delta}</p>
+        </div>
+    """
+
+    colA.markdown(
+        kpi_style.format(
+            valor=valor_opt,
+            subtitulo="Ahorro anual (optimista)",
+            delta=delta_opt
+        ),
+        unsafe_allow_html=True
+    )
+    colB.markdown(
+        kpi_style.format(
+            valor=valor_mod,
+            subtitulo="Ahorro anual (moderado)",
+            delta=delta_mod
+        ),
+        unsafe_allow_html=True
+    )
+    colC.markdown(
+        kpi_style.format(
+            valor=valor_inv,
+            subtitulo="Inversión estimada EMS",
+            delta=delta_inv
+        ),
+        unsafe_allow_html=True
+    )
+
+    st.caption("• Ahorros calculados a partir de la reducción de consumo energético gestionada por el EMS.")
+
+    # ========= GRÁFICA DE FLUJO ACUMULADO =========
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=meses, y=acum_opt, mode="lines+markers", name="Optimista"))
-    fig.add_trace(go.Scatter(x=meses, y=acum_mod, mode="lines+markers", name="Moderado"))
+    fig.add_trace(go.Scatter(x=meses, y=acum_opt, mode="lines+markers", name="Escenario optimista"))
+    fig.add_trace(go.Scatter(x=meses, y=acum_mod, mode="lines+markers", name="Escenario moderado"))
     fig.add_hline(y=0, line_dash="dot", annotation_text="Punto de equilibrio")
-    fig.update_layout(title="Flujo acumulado (24 meses)", xaxis_title="Mes", yaxis_title="USD", height=420)
+    fig.update_layout(
+        title="Flujo de caja acumulado EMS (24 meses)",
+        xaxis_title="Mes",
+        yaxis_title="USD",
+        height=420
+    )
     st.plotly_chart(fig, use_container_width=True)
 
+    # ========= BOTONES DE NAVEGACIÓN =========
     st.markdown("---")
     b1, b2 = st.columns(2)
     with b1:
@@ -503,6 +697,8 @@ def ems_ui_step4():
             st.rerun()
     with b2:
         st.button("📤 Exportar reporte (próx.)", use_container_width=True, key="ems_export")
+
+
 #FIN EMS #
 
 
@@ -697,7 +893,135 @@ def et_ui_step2():
     import pandas as pd
     import plotly.graph_objects as go
 
-    st.header("E-Trolley — Resultados multianuales")
+   
+    # ---------- 1) Parámetros guardados ----------
+    P = st.session_state.get("et_params", {})
+    if not P:
+        st.warning("No hay parámetros. Regresa al Paso 1.")
+        if st.button("Volver", use_container_width=True, key="et2_volver_btn"):
+            st.session_state.et_step = 1
+        return
+
+    # ============ BLOQUE DE RESUMEN (igual estilo que VoD) ============
+    st.subheader("Resultado del análisis :")
+
+    card_line_style = """
+        background-color: #f7f8f9;
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        font-size: 80%;
+    """
+
+    def get_priority_color(index):
+        colores = ["#fbeaea", "#fff3e0", "#fffde7"]
+        return colores[index] if index < len(colores) else "#f7f8f9"
+
+    etiquetas_prioridad = [
+        "🔴 Prioridad Alta",
+        "🟠 Prioridad Media",
+        "🟡 Prioridad Baja"
+    ]
+
+    col_res1, col_res2 = st.columns([1, 1])
+
+    # ---- Columna izquierda: resumen general + parámetros E-Trolley ----
+    with col_res1:
+        st.subheader("Resumen de información")
+
+        tipo_mina     = st.session_state.get("tipo_mina", "-")
+        tipo_material = st.session_state.get("tipo_material", "-")
+        produccion    = st.session_state.get("produccion", "-")
+
+        st.markdown(
+            f"<div style='{card_line_style}'>• Tipo de mina: <b>{tipo_mina}</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Material extraído: <b>{tipo_material}</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Producción: <b>{produccion}</b></div>",
+            unsafe_allow_html=True
+        )
+
+        # ---- Parámetros específicos de E-Trolley (de et_params) ----
+        st.markdown(
+            f"<div style='{card_line_style}'>• Distancia del tramo: "
+            f"<b>{P.get('dist_km', 0):.2f} km</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Pendiente promedio: "
+            f"<b>{P.get('pendiente', 0):.2f} %</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Cantidad de camiones: "
+            f"<b>{int(P.get('n_trucks', 0))}</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Modelo: "
+            f"<b>{P.get('model', '-')}</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Tipo de inversión: "
+            f"<b>{P.get('inv_type', '-')}</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Contingencia: "
+            f"<b>{P.get('conting', 0)} %</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Costo de energía: "
+            f"<b>{P.get('energy', 0):.3f} USD/kWh</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Mantenimiento trolley: "
+            f"<b>{P.get('maint_y', 0)/1000:.1f} kUSD/año</b></div>",
+            unsafe_allow_html=True
+        )
+
+    # ---- Columna derecha: desafíos seleccionados ----
+    with col_res2:
+        st.subheader("Desafíos seleccionados")
+
+        prioridades = st.session_state.get("prioridades", [])
+        for idx, d in enumerate(prioridades[:3]):
+            bg_color = get_priority_color(idx)
+            etiqueta = (
+                etiquetas_prioridad[idx]
+                if idx < len(etiquetas_prioridad)
+                else f"Prioridad {idx+1}"
+            )
+            st.markdown(
+                f"""
+                <div style="
+                    background-color: {bg_color};
+                    padding: 10px 15px;
+                    border-radius: 8px;
+                    margin-bottom: 8px;
+                    font-size: 80%;
+                ">
+                    <b>{etiqueta}:</b> {d}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    st.markdown("---")  # separador visual antes de los KPIs y gráficos
+    st.markdown("### Resultados proyectados a largo plazo")
+
+    # ============ FIN BLOQUE RESUMEN ============
+
+
+    # ================== A PARTIR DE AQUÍ, LO QUE YA TENÍAS ==================
 
     # ---------- 1) Parámetros guardados ----------
     P = st.session_state.get("et_params", {})
@@ -744,7 +1068,6 @@ def et_ui_step2():
         return f"{x:,.0f}"
 
     def nice_max(v):
-        """Devuelve un máximo de eje ‘bonito’ (0, 5, 10, 20, 50, 100, …)."""
         if v <= 0: return 1
         exp = 10 ** int(math.floor(math.log10(v)))
         for m in [1, 2, 5, 10]:
@@ -773,11 +1096,11 @@ def et_ui_step2():
         line_maint_M_y    = ETROLLEY_DATA.get("maintenance_line_usd_y", 120_000.0) / 1_000_000.0
         retrofit_cost_M   = ETROLLEY_DATA.get("retrofit_cost_usd", {}).get(model_name, 1_100_000) / 1_000_000.0
         mapping = {
-            "line_cost_M_per_km":    cost_per_km_M,
-            "ss_unit_cost_M":        0.8,
+            "line_cost_M_per_km":       cost_per_km_M,
+            "ss_unit_cost_M":          0.8,
             "bring_power_unit_cost_M": 0.6,
-            "truck_conv_unit_cost_M": retrofit_cost_M,
-            "line_maint_M_per_km_y": line_maint_M_y / max(dist_km, 1.0),
+            "truck_conv_unit_cost_M":  retrofit_cost_M,
+            "line_maint_M_per_km_y":   line_maint_M_y / max(dist_km, 1.0),
         }
         return float(mapping.get(key, 0.0))
 
@@ -788,12 +1111,7 @@ def et_ui_step2():
     cap_conv_M  = _hlookup_trolleyB(model, "truck_conv_unit_cost_M") * n_trucks * conting_f
     capex_y1_M  = cap_line_M + cap_ss_M + cap_bp_M + cap_conv_M
 
-    # ---------- 6) KPIs (con K/M/B) ----------
-    
-    # ---------- KPIs orientados a impacto (toneladas, emisiones, ahorro) ----------
-    # ---------- KPIs orientados a impacto (posición: después de filas 72..80 y cálculos de toneladas/CO2) ----------
-
-    # ---------- KPIs orientados a impacto (a prueba de orden) ----------
+    # ---------- 6) KPIs con estilo ABB ----------
     def _fmt_short(x: float, decimals: int = 1) -> str:
         x = float(x); a = abs(x)
         if a >= 1e9: return f"{x/1e9:.{decimals}f} B"
@@ -801,66 +1119,42 @@ def et_ui_step2():
         if a >= 1e3: return f"{x/1e3:.0f} K"
         return f"{x:,.0f}"
 
-    # 1) Asegurar TONELADAS ACUMULADAS (MTM)
-    if 'cum_ton_c1' not in locals() or 'cum_ton_c2' not in locals():
-        cap_t = ETROLLEY_DATA["truck_catalog"].get(model, {}).get("capacidad_t", 230)
-        ton_c1_y = trips_uphill_c1_y * cap_t / 1_000_000.0
-        ton_c2_y = trips_uphill_c2_y * cap_t / 1_000_000.0
-        acc1 = acc2 = 0.0
-        cum_ton_c1, cum_ton_c2 = [], []
-        for _ in years:
-            acc1 += ton_c1_y
-            acc2 += ton_c2_y
-            cum_ton_c1.append(acc1)
-            cum_ton_c2.append(acc2)
+    # toneladas / CO2 (por si aún no están)
+    cap_t = ETROLLEY_DATA["truck_catalog"].get(model, {}).get("capacidad_t", 230)
+    ton_c1_y = trips_uphill_c1_y * cap_t / 1_000_000.0
+    ton_c2_y = trips_uphill_c2_y * cap_t / 1_000_000.0
+    cum_ton_c1, cum_ton_c2 = [], []
+    acc1 = acc2 = 0.0
+    for _ in years:
+        acc1 += ton_c1_y
+        acc2 += ton_c2_y
+        cum_ton_c1.append(acc1)
+        cum_ton_c2.append(acc2)
 
     ton_c1_total_M = float(cum_ton_c1[-1]) if cum_ton_c1 else 0.0
     ton_c2_total_M = float(cum_ton_c2[-1]) if cum_ton_c2 else 0.0
     delta_ton_pct  = ((ton_c2_total_M - ton_c1_total_M) / max(ton_c1_total_M, 1e-9)) * 100.0
 
-    # 2) Asegurar CO2 ACUMULADO (Kt)
-    if 'cum_co2_saved_kt' not in locals():
-        diesel_kg_per_l = float(st.session_state.get("et_diesel_kg_l", 2.68))
-        grid_kg_per_kwh = float(st.session_state.get("et_grid_kg_kwh", 0.20))
-        co2_c1_y_ton = (diesel_l_y_c1 * diesel_kg_per_l) / 1000.0
-        co2_c2_y_ton = (elec_kwh_y_c2 * grid_kg_per_kwh) / 1000.0
-        co2_saved_y_ton = max(0.0, co2_c1_y_ton - co2_c2_y_ton)
-        cum_co2_saved_kt, _acc = [], 0.0
-        for _ in years:
-            _acc += co2_saved_y_ton
-            cum_co2_saved_kt.append(_acc / 1000.0)
-
+    diesel_kg_per_l = float(st.session_state.get("et_diesel_kg_l", 2.68))
+    grid_kg_per_kwh = float(st.session_state.get("et_grid_kg_kwh", 0.20))
+    co2_c1_y_ton = (diesel_l_y_c1 * diesel_kg_per_l) / 1000.0
+    co2_c2_y_ton = (elec_kwh_y_c2 * grid_kg_per_kwh) / 1000.0
+    co2_saved_y_ton = max(0.0, co2_c1_y_ton - co2_c2_y_ton)
+    cum_co2_saved_kt, _acc = [], 0.0
+    for _ in years:
+        _acc += co2_saved_y_ton
+        cum_co2_saved_kt.append(_acc / 1000.0)
     co2_total_kt = float(cum_co2_saved_kt[-1]) if cum_co2_saved_kt else 0.0
 
-    # 3) Ahorro operativo anual
     ahorro_operativo_y = max(0.0, costo_diesel_y - opex_c2_total_y)
 
-    # 4) CAPEX año 1
-    capex_y1_M = 0.0
-    if all(name in locals() for name in ("fila72","fila73","fila74","fila75")) and fila72:
-        capex_y1_M = float(fila72[0]) + float(fila73[0]) + float(fila74[0]) + float(fila75[0])
-
-    # ---- Render: mostrará 131 MTM y ~8.4 KtCO2 si tus datos son esos
-   #  c1, c2, c3, c4 = st.columns(4)
-   # c1.metric("Toneladas movidas (10 años)", f"{ton_c2_total_M:,.0f} MTM", delta=f"{delta_ton_pct:+.0f}% vs C1")
-   # c2.metric("Emisiones evitadas (10 años)", f"{co2_total_kt:.1f} KtCO₂")
-   # c3.metric("Ahorro operativo anual", f"USD {_fmt_short(ahorro_operativo_y,1)}")
-   # c4.metric("CAPEX año 1", f"USD {_fmt_short(capex_y1_M*1_000_000,1)}")
-    #st.caption("• MTM = millones de toneladas-movidas · KtCO₂ = miles de toneladas de CO₂ · Ahorro: diésel vs (eléctrico + mantenimiento).")
-    
-    # ---------- KPIs con estilo ABB (fondo gris y negrita) ----------
-
-    # Valores ya calculados
     toneladas = f"{ton_c2_total_M:,.0f} MTM"
     emisiones = f"{co2_total_kt:.1f} KtCO₂"
-    ahorro = f"USD {_fmt_short(ahorro_operativo_y,1)}"
-    capex = f"USD {_fmt_short(capex_y1_M*1_000_000,1)}"
+    ahorro    = f"USD {_fmt_short(ahorro_operativo_y,1)}"
+    capex     = f"USD {_fmt_short(capex_y1_M*1_000_000,1)}"
     delta_ton = f"{delta_ton_pct:+.0f}% vs C1"
 
-    # Columnas
     col1, col2, col3, col4 = st.columns(4)
-
-    # Estilo visual tipo ABB
     kpi_style = """
         <div style="
             background-color:#f5f5f5;
@@ -874,112 +1168,15 @@ def et_ui_step2():
             <p style="margin-top:5px; color:#008000; font-size:13px;">{delta}</p>
         </div>
     """
-
     col1.markdown(kpi_style.format(valor=toneladas, subtitulo="Toneladas movidas (10 años)", delta=delta_ton), unsafe_allow_html=True)
     col2.markdown(kpi_style.format(valor=emisiones, subtitulo="Emisiones evitadas (10 años)", delta=""), unsafe_allow_html=True)
     col3.markdown(kpi_style.format(valor=ahorro, subtitulo="Ahorro operativo anual", delta=""), unsafe_allow_html=True)
-    col4.markdown(kpi_style.format(valor=capex, subtitulo="CAPEX año 1", delta=""), unsafe_allow_html=True)
-
+    
     st.caption("• MTM = millones de toneladas-movidas · KtCO₂ = miles de toneladas de CO₂ · Ahorro: diésel vs (eléctrico + mantenimiento).")
 
-      #Camioncito!
-    import streamlit.components.v1 as components
+    # ⚠️ AQUÍ YA NO HAY ANIMACIÓN DE CAMIONES ⚠️
 
-    # === Camiones ABB animados (debajo de KPIs) ===
-    truck_count = int(P.get("n_trucks", 1))  # usa la cantidad elegida en el paso anterior
-
-    def truck_svg():
-        # Komatsu 860E-1K con “livery” ABB (rojos) y detalles oscuros
-        return """
-        <svg viewBox="0 0 640 220" xmlns="http://www.w3.org/2000/svg">
-          <!-- tolva / cuerpo -->
-          <path d="M40 60 L360 38 L610 44 L610 86 L360 100 L40 92 Z" fill="#E00000" stroke="#7a0a0a" stroke-width="3"/>
-          <!-- cabina -->
-          <rect x="370" y="100" width="110" height="48" rx="6" fill="#B00000" stroke="#7a0a0a" stroke-width="3"/>
-          <rect x="385" y="108" width="36" height="24" rx="3" fill="#f5d7d7"/>
-          <!-- chasis -->
-          <rect x="60" y="110" width="520" height="28" rx="6" fill="#8C0E0E"/>
-          <rect x="80" y="130" width="180" height="18" rx="3" fill="#660909"/>
-          <!-- ruedas -->
-          <g fill="#333">
-            <circle cx="150" cy="180" r="36"/>
-            <circle cx="320" cy="180" r="36"/>
-            <circle cx="500" cy="180" r="36"/>
-          </g>
-          <g fill="#CCC">
-            <circle cx="150" cy="180" r="16"/>
-            <circle cx="320" cy="180" r="16"/>
-            <circle cx="500" cy="180" r="16"/>
-          </g>
-          <!-- branding -->
-          <text x="72" y="126" font-size="16" fill="#ffffff" font-weight="700">ABB 860E</text>
-        </svg>
-        """
-
-    # CSS + carril + camiones (usamos components.html para que NUNCA se escape el HTML)
-    duracion_s = 10.0
-    delay_step = 1.2  # desfase entre camiones
-
-    lane_html = f"""
-    <!doctype html>
-    <html>
-    <head>
-    <meta charset="utf-8"/>
-    <style>
-      .etlane {{
-        position: relative;
-        width: 100%;
-        height: 120px;
-        margin: 10px 0 0 0;
-        border-radius: 10px;
-        background: linear-gradient(180deg, #f6f7f9 0%, #e9edf2 100%);
-        overflow: hidden;
-        box-shadow: inset 0 1px 4px rgba(0,0,0,.08);
-      }}
-      .etlane:after {{
-        content: "";
-        position: absolute;
-        left: 0; right: 0; bottom: 20px;
-        height: 2px;
-        background: repeating-linear-gradient(90deg, #cfcfd4 0 24px, #9ea3aa 24px 48px);
-        opacity: .7;
-      }}
-      .ettruck {{
-        position: absolute;
-        bottom: 14px;
-        width: 210px;
-        animation: et-drive {duracion_s}s linear infinite;
-      }}
-      @keyframes et-drive {{
-        0%   {{ transform: translateX(-260px); }}
-        100% {{ transform: translateX(calc(100vw - 20px)); }}
-      }}
-    </style>
-    </head>
-    <body>
-      <div class="etlane">
-        {"".join([f'<div class="ettruck" style="animation-delay:{i*delay_step}s;">{truck_svg()}</div>' for i in range(truck_count)])}
-      </div>
-    </body>
-    </html>
-    """
-
-    # Render seguro (no se escapa, sí ejecuta CSS/animación)
-    components.html(lane_html, height=140, scrolling=False)
-
-
-
-
-    # ---------- 7) Toneladas acumuladas ----------
-    cap_t = ETROLLEY_DATA["truck_catalog"].get(model, {}).get("capacidad_t", 230)
-    ton_c1_y = trips_uphill_c1_y * cap_t / 1_000_000.0
-    ton_c2_y = trips_uphill_c2_y * cap_t / 1_000_000.0
-    cum_ton_c1, cum_ton_c2 = [], []
-    acc1 = acc2 = 0.0
-    for _ in years:
-        acc1 += ton_c1_y; cum_ton_c1.append(acc1)
-        acc2 += ton_c2_y; cum_ton_c2.append(acc2)
-
+    # ---------- 7) Toneladas acumuladas (gráfico) ----------
     ymax_ton = nice_max(max(cum_ton_c1 + cum_ton_c2))
 
     fig_tm = go.Figure()
@@ -996,8 +1193,6 @@ def et_ui_step2():
     fig_tm.update_yaxes(range=[0, ymax_ton], dtick=ymax_ton/7.0, title="MTM")
     fig_tm.update_xaxes(title="Año")
     fig_tm.update_layout(title="CUMULATIVE TONNES MOVED (M TM)", margin=dict(l=10,r=10,t=60,b=40))
-
-    # anotaciones (valor final)
     fig_tm.add_annotation(x=years[-1], y=cum_ton_c1[-1], text=f"{cum_ton_c1[-1]:.0f} MTM",
                           showarrow=True, arrowhead=2, ax=30, ay=-20)
     fig_tm.add_annotation(x=years[-1], y=cum_ton_c2[-1], text=f"{cum_ton_c2[-1]:.0f} MTM",
@@ -1036,12 +1231,10 @@ def et_ui_step2():
                            text=f"{cum_co2_saved_kt[-1]:.1f} KtCO₂",
                            showarrow=True, arrowhead=2, ax=30, ay=-20)
 
-    # ---------- Mostrar ----------
     g1, g2 = st.columns(2)
     g1.plotly_chart(fig_tm,  use_container_width=True, key="et_tons_y_only")
     g2.plotly_chart(fig_co2, use_container_width=True, key="et_co2_saved_only")
 
-    # ---------- Diagnóstico (opcional) ----------
     with st.expander("🔎 Diagnóstico (valores clave)"):
         df_dbg = pd.DataFrame({
             "Año": years,
@@ -1180,10 +1373,23 @@ if st.session_state.step == 3:
     priority2_exact = prioridades[1] if len(prioridades) >= 2 else None
 
     # Hook E-Trolley si la Prioridad 2 = "Reducir consumo de combustible fósil"
-    if _norm(priority2_exact) == _norm("Reducir consumo de combustible fósil"):
-        st.header("Paso 3 de 4: E-Trolley — Parámetros del caso")
-        (et_ui_step1() if st.session_state.get("et_step", 1) == 1 else et_ui_step2())
+    # Y SOLO si el tipo de mina es Tajo abierto
+    if _norm(priority2_exact) == _norm("Reducir consumo de combustible fósil") and \
+       st.session_state.get("tipo_mina", "") == "Tajo abierto":
+
+        # Paso 3: parámetros
+        if st.session_state.get("et_step", 1) == 1:
+            st.header("Paso 3 de 4: E-Trolley — Parámetros del caso")
+            et_ui_step1()
+
+        # Paso 4: resultados
+        else:
+            st.header("Paso 4 de 4: E-Trolley — Resultados del caso")
+            et_ui_step2()
+
         st.stop()
+
+
 
     # Hook EMS si P1=centralizar visibilidad y P2=reducción energética
     if (priority1_exact and priority2_exact and
@@ -1548,7 +1754,33 @@ if st.session_state.step == 5:
         st.markdown(f"<div style='{card_line_style}'>• Tipo de mina: <b>{st.session_state.tipo_mina}</b></div>", unsafe_allow_html=True)
         st.markdown(f"<div style='{card_line_style}'>• Material extraído: <b>{st.session_state.tipo_material}</b></div>", unsafe_allow_html=True)
         st.markdown(f"<div style='{card_line_style}'>• Producción: <b>{st.session_state.produccion}</b></div>", unsafe_allow_html=True)
+            # === Resumen E-Trolley si corresponde ===
+    
+        st.markdown("---")
+        st.subheader("Parámetros E-Trolley")
 
+        st.markdown(f"• Distancia del tramo: <b>{st.session_state.get('et_distancia', 0)} km</b>", unsafe_allow_html=True)
+        st.markdown(f"• Pendiente promedio: <b>{st.session_state.get('et_pendiente', 0)} %</b>", unsafe_allow_html=True)
+        st.markdown(f"• Cantidad de camiones: <b>{st.session_state.get('et_camiones', 0)}</b>", unsafe_allow_html=True)
+
+        modelo = st.session_state.get("et_modelo", "Komatsu")
+        st.markdown(f"• Modelo seleccionado: <b>{modelo}</b>", unsafe_allow_html=True)
+
+        inv = st.session_state.get("et_inversion", "Compra nueva")
+        st.markdown(f"• Tipo de inversión: <b>{inv}</b>", unsafe_allow_html=True)
+
+        cont = st.session_state.get("et_contingencia", 0)
+        st.markdown(f"• Contingencia: <b>{cont} %</b>", unsafe_allow_html=True)
+
+        energia = st.session_state.get("et_energia", 0)
+        st.markdown(f"• Costo de energía: <b>{energia} USD/kWh</b>", unsafe_allow_html=True)
+
+        mant = st.session_state.get("et_mant", 0)
+        st.markdown(f"• Mantenimiento trolley: <b>{mant} kUSD/año</b>", unsafe_allow_html=True)
+
+        
+        
+        
         # Niveles y caso
         n_act = st.session_state.get("nivel_actual")
         n_obj = st.session_state.get("nivel_objetivo")
