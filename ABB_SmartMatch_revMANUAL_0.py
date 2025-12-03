@@ -1749,53 +1749,128 @@ if st.session_state.step == 5:
 
     # --- columnas principales ---
     col1, col2 = st.columns([1, 1.2])
+
+    # ================== COLUMNA IZQUIERDA ==================
     with col1:
         st.subheader("Resumen de información")
-        st.markdown(f"<div style='{card_line_style}'>• Tipo de mina: <b>{st.session_state.tipo_mina}</b></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='{card_line_style}'>• Material extraído: <b>{st.session_state.tipo_material}</b></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='{card_line_style}'>• Producción: <b>{st.session_state.produccion}</b></div>", unsafe_allow_html=True)
-            # === Resumen E-Trolley si corresponde ===
-    
+
+        st.markdown(
+            f"<div style='{card_line_style}'>• Tipo de mina: "
+            f"<b>{st.session_state.tipo_mina}</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Material extraído: "
+            f"<b>{st.session_state.tipo_material}</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Producción: "
+            f"<b>{st.session_state.produccion}</b></div>",
+            unsafe_allow_html=True
+        )
+
+        # ---------- SOLO SI HAY CASO E-TROLLEY ----------
+        et_params = st.session_state.get("et_params")
+        if et_params:
+            st.markdown("---")
+            st.subheader("Parámetros E-Trolley")
+
+            st.markdown(
+                f"<div style='{card_line_style}'>• Distancia del tramo: "
+                f"<b>{et_params.get('dist_km', 0):.2f} km</b></div>",
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f"<div style='{card_line_style}'>• Pendiente promedio: "
+                f"<b>{et_params.get('pendiente', 0):.1f} %</b></div>",
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f"<div style='{card_line_style}'>• Cantidad de camiones: "
+                f"<b>{int(et_params.get('n_trucks', 0))}</b></div>",
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f"<div style='{card_line_style}'>• Modelo seleccionado: "
+                f"<b>{et_params.get('model', '-')}</b></div>",
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f"<div style='{card_line_style}'>• Tipo de inversión: "
+                f"<b>{et_params.get('inv_type', '-')}</b></div>",
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f"<div style='{card_line_style}'>• Contingencia: "
+                f"<b>{et_params.get('conting', 0):.1f} %</b></div>",
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f"<div style='{card_line_style}'>• Costo de energía: "
+                f"<b>{et_params.get('energy', 0):.3f} USD/kWh</b></div>",
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f"<div style='{card_line_style}'>• Mantenimiento trolley: "
+                f"<b>{et_params.get('maint_y', 0)/1000:.1f} kUSD/año</b></div>",
+                unsafe_allow_html=True
+            )
+
+        # ---------- PARÁMETROS VENTILACIÓN / VoD ----------
         st.markdown("---")
-        st.subheader("Parámetros E-Trolley")
+        st.subheader("Parámetros Ventilación / VoD")
 
-        st.markdown(f"• Distancia del tramo: <b>{st.session_state.get('et_distancia', 0)} km</b>", unsafe_allow_html=True)
-        st.markdown(f"• Pendiente promedio: <b>{st.session_state.get('et_pendiente', 0)} %</b>", unsafe_allow_html=True)
-        st.markdown(f"• Cantidad de camiones: <b>{st.session_state.get('et_camiones', 0)}</b>", unsafe_allow_html=True)
-
-        modelo = st.session_state.get("et_modelo", "Komatsu")
-        st.markdown(f"• Modelo seleccionado: <b>{modelo}</b>", unsafe_allow_html=True)
-
-        inv = st.session_state.get("et_inversion", "Compra nueva")
-        st.markdown(f"• Tipo de inversión: <b>{inv}</b>", unsafe_allow_html=True)
-
-        cont = st.session_state.get("et_contingencia", 0)
-        st.markdown(f"• Contingencia: <b>{cont} %</b>", unsafe_allow_html=True)
-
-        energia = st.session_state.get("et_energia", 0)
-        st.markdown(f"• Costo de energía: <b>{energia} USD/kWh</b>", unsafe_allow_html=True)
-
-        mant = st.session_state.get("et_mant", 0)
-        st.markdown(f"• Mantenimiento trolley: <b>{mant} kUSD/año</b>", unsafe_allow_html=True)
-
-        
-        
-        
-        # Niveles y caso
         n_act = st.session_state.get("nivel_actual")
         n_obj = st.session_state.get("nivel_objetivo")
         caso  = st.session_state.get("caso")
-        if n_act: st.markdown(f"<div style='{card_line_style}'>• Nivel actual: <b>{n_act}</b></div>", unsafe_allow_html=True)
-        if n_obj: st.markdown(f"<div style='{card_line_style}'>• Nivel objetivo: <b>{n_obj}</b></div>", unsafe_allow_html=True)
-        if caso:  st.markdown(f"<div style='{card_line_style}'>• Caso detectado: <b>{caso}</b></div>", unsafe_allow_html=True)
 
-        # Parámetros técnicos
-        st.markdown(f"<div style='{card_line_style}'>• Ventiladores primarios: <b>{st.session_state.ventiladores_prim}</b></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='{card_line_style}'>• Potencia promedio (primarios): <b>{st.session_state.potencia_prim} kW</b></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='{card_line_style}'>• Ventiladores complementarios: <b>{st.session_state.ventiladores_comp}</b></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='{card_line_style}'>• Potencia promedio (complementarios): <b>{st.session_state.potencia_comp} kW</b></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='{card_line_style}'>• Tarifa eléctrica: <b>{st.session_state.tarifa}</b></div>", unsafe_allow_html=True)
+        if caso is not None:
+            st.markdown(
+                f"<div style='{card_line_style}'>• Caso detectado: "
+                f"<b>{caso}</b></div>",
+                unsafe_allow_html=True
+            )
+        if n_act:
+            st.markdown(
+                f"<div style='{card_line_style}'>• Nivel actual: "
+                f"<b>{n_act}</b></div>",
+                unsafe_allow_html=True
+            )
+        if n_obj:
+            st.markdown(
+                f"<div style='{card_line_style}'>• Nivel objetivo: "
+                f"<b>{n_obj}</b></div>",
+                unsafe_allow_html=True
+            )
 
+        st.markdown(
+            f"<div style='{card_line_style}'>• Ventiladores primarios: "
+            f"<b>{st.session_state.ventiladores_prim}</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Potencia promedio (primarios): "
+            f"<b>{st.session_state.potencia_prim} kW</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Ventiladores complementarios: "
+            f"<b>{st.session_state.ventiladores_comp}</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Potencia promedio (complementarios): "
+            f"<b>{st.session_state.potencia_comp} kW</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Tarifa eléctrica: "
+            f"<b>{st.session_state.tarifa}</b></div>",
+            unsafe_allow_html=True
+        )
+
+    # ================== COLUMNA DERECHA ==================
     with col2:
         st.subheader("Desafíos seleccionados")
 
@@ -1807,7 +1882,11 @@ if st.session_state.step == 5:
 
         for idx, d in enumerate(st.session_state.prioridades[:3]):
             bg_color = get_priority_color(idx)
-            etiqueta = etiquetas_prioridad[idx] if idx < len(etiquetas_prioridad) else f"Prioridad {idx+1}"
+            etiqueta = (
+                etiquetas_prioridad[idx]
+                if idx < len(etiquetas_prioridad)
+                else f"Prioridad {idx+1}"
+            )
 
             st.markdown(f"""
                 <div style="
@@ -1820,6 +1899,10 @@ if st.session_state.step == 5:
                     <b>{etiqueta}:</b> {d}
                 </div>
             """, unsafe_allow_html=True)
+
+    # ------------ (de aquí hacia abajo dejas TODO igual: cálculos, gráficos, KPIs, botones) ------------
+    # ... tu bloque de cálculos energéticos, curvas, KPIs y botones permanece sin cambios ...
+
 
 
     # ================== Cálculos energéticos ==================
