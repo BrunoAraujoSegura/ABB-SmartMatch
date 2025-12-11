@@ -903,8 +903,7 @@ def et_ui_step2():
         return
 
     # ============ BLOQUE DE RESUMEN (igual estilo que VoD) ============
-    st.subheader("Resultado del análisis :")
-
+    
     card_line_style = """
         background-color: #f7f8f9;
         padding: 10px 15px;
@@ -1250,11 +1249,357 @@ def et_ui_step2():
         st.rerun()
 
 
+# ===================== APC (Advanced Process Control) =====================
+
+def apc_step1():
+    st.subheader("APC — Paso 1: Datos de proceso y económicos")
+
+    # Valores por defecto tomados del Excel
+    throughput = st.number_input(
+        "Throughput (tph):",
+        min_value=1.0,
+        value=st.session_state.get("apc_throughput", 4000.0),
+        step=10.0,
+        key="apc_throughput_in"
+    )
+
+    availability_pct = st.slider(
+        "Disponibilidad operativa (%):",
+        min_value=50, max_value=100,
+        value=st.session_state.get("apc_availability_pct", 90),
+        format="%d%%",
+        key="apc_availability_in"
+    )
+
+    power_mw = st.number_input(
+        "Potencia del sistema (MW):",
+        min_value=0.1,
+        value=st.session_state.get("apc_power_mw", 28.0),
+        step=0.1,
+        key="apc_power_in"
+    )
+
+    energy_cost = st.number_input(
+        "Costo de energía (USD/kWh):",
+        min_value=0.001,
+        value=st.session_state.get("apc_energy_cost", 0.06),
+        step=0.001,
+        format="%.3f",
+        key="apc_energy_cost_in"
+    )
+
+    net_worth = st.number_input(
+        "Net worth per ton (USD/t):",
+        min_value=1.0,
+        value=st.session_state.get("apc_net_worth", 22.0),
+        step=1.0,
+        key="apc_net_worth_in"
+    )
+
+    st.markdown("### 📗 Datos económicos adicionales")
+
+    # ============================
+    # Costo mensual de reactivos
+    # ============================
+    reagent_cost_m_musd = st.number_input(
+        "Costo mensual de reactivos (MUSD/mes):",
+        min_value=0.0,
+        value=st.session_state.get("apc_reagent_cost_m_musd", 0.12),  # 0.12 MUSD = 120,000 USD
+        step=0.01,
+        format="%.3f",
+        key="apc_reagent_in"
+    )
+
+    # Convertir a USD/mes internamente
+    reagent_cost_m = reagent_cost_m_musd * 1_000_000
+    st.session_state.apc_reagent_cost_m = reagent_cost_m
+    st.session_state.apc_reagent_cost_m_musd = reagent_cost_m_musd
+
+
+    # ============================
+    # Valor económico del 1% de recuperación
+    # ============================
+    recovery_value_musd = st.number_input(
+        "Valor económico del 1% de recuperación (MUSD/año):",
+        min_value=0.0,
+        value=st.session_state.get("apc_recovery_value_musd", 10.0),  # 10 MUSD = 10M USD
+        step=0.5,
+        format="%.2f",
+        key="apc_recovery_in"
+    )
+
+    # Convertir a USD/año internamente
+    recovery_value = recovery_value_musd * 1_000_000
+    st.session_state.apc_recovery_value = recovery_value
+    st.session_state.apc_recovery_value_musd = recovery_value_musd
+
+
+    # Guardar en sesión (normalizado)
+    st.session_state.apc_throughput = float(throughput)
+    st.session_state.apc_availability_pct = int(availability_pct)
+    st.session_state.apc_availability = float(availability_pct) / 100.0
+    st.session_state.apc_power_mw = float(power_mw)
+    st.session_state.apc_energy_cost = float(energy_cost)
+    st.session_state.apc_net_worth = float(net_worth)
+    st.session_state.apc_reagent_cost_m = float(reagent_cost_m)
+    st.session_state.apc_recovery_value = float(recovery_value)
+
+    col_a, col_b = st.columns(2)
+
+    # Volver a Paso 2 (desafíos) / cerrar APC
+    with col_a:
+        if st.button("❌ Cerrar APC", key="apc_close_1", use_container_width=True):
+            st.session_state.apc_mode = False
+            st.session_state.step = 2
+            st.rerun()
+
+    # Ir a Paso 4 (Beneficios APC)
+    with col_b:
+        if st.button("Calcular beneficios APC ▶", key="apc_go_step2", type="primary", use_container_width=True):
+            st.session_state.apc_mode = True   # por seguridad
+            st.session_state.step = 4
+            st.rerun()
+
+
+
+def apc_step2():
+    # ⚠️ Ya NO ponemos "APC — Paso 2" aquí, porque el título principal
+    # lo define el Paso 4:
+    # st.header("Paso 4 de 4: Advanced Process Control (APC) — Beneficios estimados")
+
+    # ========= 1) Recuperar parámetros necesarios =========
+    if "apc_throughput" not in st.session_state:
+        st.warning("Primero completa los datos de proceso y económicos (Paso 1 de APC).")
+        st.session_state.apc_step = 1
+        return
+
+    # Datos generales del Paso 1 global
+    tipo_mina     = st.session_state.get("tipo_mina", "—")
+    tipo_material = st.session_state.get("tipo_material", "—")
+    produccion    = st.session_state.get("produccion", "—")
+
+    # Parámetros APC del Paso 1 APC
+    tp          = float(st.session_state.apc_throughput)
+    avail_pct   = float(st.session_state.apc_availability_pct)
+    avail       = float(st.session_state.apc_availability)
+    p_mw        = float(st.session_state.apc_power_mw)
+    c_kwh       = float(st.session_state.apc_energy_cost)
+    net_worth   = float(st.session_state.apc_net_worth)
+    reagent_m   = float(st.session_state.apc_reagent_cost_m)
+    rec_1pct_val = float(st.session_state.apc_recovery_value)
+
+    # Valores en MUSD para mostrarlos bonitos
+    reagent_m_musd = float(st.session_state.get("apc_reagent_cost_m_musd", reagent_m/1_000_000))
+    rec_1pct_musd  = float(st.session_state.get("apc_recovery_value_musd", rec_1pct_val/1_000_000))
+
+    # ========= 2) Bloque de RESUMEN (similar a E-Trolley) =========
+    card_line_style = """
+        background-color: #f7f8f9;
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        font-size: 80%;
+    """
+
+    def get_priority_color(index):
+        colores = ["#fbeaea", "#fff3e0", "#fffde7"]
+        return colores[index] if index < len(colores) else "#f7f8f9"
+
+    etiquetas_prioridad = [
+        "🔴 Prioridad Alta",
+        "🟠 Prioridad Media",
+        "🟡 Prioridad Baja"
+    ]
+
+    col_res1, col_res2 = st.columns([1, 1])
+
+    # ----- Columna izquierda: Resumen de información -----
+    with col_res1:
+        st.subheader("Resumen de información")
+
+        st.markdown(
+            f"<div style='{card_line_style}'>• Tipo de mina: "
+            f"<b>{tipo_mina}</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Material extraído: "
+            f"<b>{tipo_material}</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Producción: "
+            f"<b>{produccion}</b></div>",
+            unsafe_allow_html=True
+        )
+
+        st.markdown(
+            f"<div style='{card_line_style}'>• Throughput de diseño: "
+            f"<b>{tp:,.0f} tph</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Disponibilidad operativa: "
+            f"<b>{avail_pct:.0f} %</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Potencia del sistema: "
+            f"<b>{p_mw:.1f} MW</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Costo de energía: "
+            f"<b>{c_kwh:.3f} USD/kWh</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Net worth del mineral: "
+            f"<b>{net_worth:,.0f} USD/t</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Costo mensual de reactivos: "
+            f"<b>{reagent_m_musd:.3f} MUSD/mes</b></div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='{card_line_style}'>• Valor del 1% de recuperación: "
+            f"<b>{rec_1pct_musd:.1f} MUSD/año</b></div>",
+            unsafe_allow_html=True
+        )
+
+    # ----- Columna derecha: Desafíos seleccionados -----
+    with col_res2:
+        st.subheader("Desafíos seleccionados")
+
+        prioridades = st.session_state.get("prioridades", [])
+        for idx, d in enumerate(prioridades[:3]):
+            bg_color = get_priority_color(idx)
+            etiqueta = (
+                etiquetas_prioridad[idx]
+                if idx < len(etiquetas_prioridad)
+                else f"Prioridad {idx+1}"
+            )
+            st.markdown(
+                f"""
+                <div style="
+                    background-color: {bg_color};
+                    padding: 10px 15px;
+                    border-radius: 8px;
+                    margin-bottom: 8px;
+                    font-size: 80%;
+                ">
+                    <b>{etiqueta}:</b> {d}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    st.markdown("---")  # separador antes de los KPIs
+
+    # ========= 3) Cálculos APC (igual que antes) =========
+    horas_anuales = 8760.0 * avail
+    tons_anuales = tp * horas_anuales
+    energia_mwh = p_mw * horas_anuales
+    costo_energia_anual = energia_mwh * 1000.0 * c_kwh  # (lo puedes usar luego si quieres)
+
+    # Suposiciones básicas:
+    costo_reactivos_anual = reagent_m * 12.0
+    ahorro_reactivos = costo_reactivos_anual * 0.05          # 5% ahorro
+    beneficio_recuperacion = rec_1pct_val                    # 1% recuperación
+    beneficio_total = beneficio_recuperacion + ahorro_reactivos
+
+    # ========= 4) KPIs (lo que ya tenías) =========
+    card_style = """
+        background-color: #f7f8f9;
+        padding: 18px;
+        border-radius: 12px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        margin-bottom: 12px;
+    """
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("### Indicadores de operación")
+        st.markdown(
+            f"""
+            <div style="{card_style}">
+                <div style="font-size:24px; font-weight:bold;">{tons_anuales/1e6:,.2f} M ton/año</div>
+                <div style="font-size:14px; color:#555;">Throughput anual</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"""
+            <div style="{card_style}">
+                <div style="font-size:24px; font-weight:bold;">{energia_mwh/1000:,.2f} GWh/año</div>
+                <div style="font-size:14px; color:#555;">Consumo energético estimado</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col2:
+        st.markdown("### Indicadores económicos APC")
+        st.markdown(
+            f"""
+            <div style="{card_style}">
+                <div style="font-size:24px; font-weight:bold;">MUSD {beneficio_recuperacion/1_000_000:,.0f}</div>
+                <div style="font-size:14px; color:#555;">Beneficio por +1% recuperación</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"""
+            <div style="{card_style}">
+                <div style="font-size:24px; font-weight:bold;">KUSD {ahorro_reactivos/1000:,.0f}</div>
+                <div style="font-size:14px; color:#555;">Ahorro anual estimado en reactivos (5%)</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"""
+            <div style="{card_style}">
+                <div style="font-size:24px; font-weight:bold;">MUSD {beneficio_total/1_000_000:,.0f}</div>
+                <div style="font-size:14px; color:#555;">Beneficio económico total estimado (sin CAPEX)</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # ========= 5) Botones de navegación =========
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+        if st.button("◀ Volver a editar datos APC", key="apc_back_step1", use_container_width=True):
+            st.session_state.step = 3
+            st.rerun()
+
+    with col_b:
+        if st.button("❌ Cerrar APC", key="apc_close_2", use_container_width=True):
+            st.session_state.apc_mode = False
+            st.session_state.step = 2
+            st.rerun()
+
+
+
+
+
+
+
 # Inicializar estados
 if "step" not in st.session_state:
     st.session_state.step = 1
 if "prioridades" not in st.session_state:
     st.session_state.prioridades = []
+
+
+
+
 
 # Paso 1 de 4
 if st.session_state.step == 1:
@@ -1276,6 +1621,13 @@ if st.session_state.step == 1:
         st.button("Siguiente ▶", on_click=next_step, key="next1", type="primary")
     with col2:
         st.empty()
+
+
+
+
+
+
+
 
 # Paso 2 de 4
 if st.session_state.step == 2:
@@ -1321,9 +1673,14 @@ if st.session_state.step == 2:
                 unsafe_allow_html=True
             )
 
+
+  
+    # --- Navegación ---
     col1, col2 = st.columns([1, 1])
+
     with col1:
         st.button("◀ Anterior", on_click=prev_step, key="prev2", type="secondary")
+
     with col2:
         if st.button("Siguiente ▶", key="next2", type="primary"):
             if len(st.session_state.prioridades) == 0:
@@ -1332,6 +1689,10 @@ if st.session_state.step == 2:
             else:
                 next_step()
                 st.rerun()
+
+
+   
+
 
 # ---------------- Config (reemplaza TRANSICION_A_CASO) ----------------
 NIVELES_ORDEN = ["Esencial", "Básico", "Operación Efectiva", "Smart"]
@@ -1363,31 +1724,62 @@ def casos_desde_ruta(ruta: list[str]):
 
     
 # Paso 3 de 4
+# Paso 3 de 4
 if st.session_state.step == 3:
     import unicodedata
+
     def _norm(s: str) -> str:
         return unicodedata.normalize("NFKD", (s or "")).encode("ascii","ignore").decode().strip().lower()
 
     prioridades = st.session_state.get("prioridades", [])
+
+    # Por defecto, NO estamos en modo APC
+    st.session_state.apc_mode = False
+
+    # ---------- 1) COMBO APC (P1,P2,P3) ----------
+    apc_auto = (
+        len(prioridades) >= 3 and
+        _norm(prioridades[0]) == _norm("Aumentar la recuperación") and
+        _norm(prioridades[1]) == _norm("Aumentar rendimiento de equipos") and
+        _norm(prioridades[2]) == _norm("Reducir consumo energético")
+    )
+
+    if apc_auto:
+        st.session_state.apc_mode = True
+        st.header("Paso 3 de 4: Advanced Process Control (APC) — Datos de proceso y económicos")
+        apc_step1()          # 👈 mostramos directamente el Paso 1 de APC
+        st.stop()            # 👈 no seguimos a EMS / VoD / Trolley
+
+    # ---------- 2) SI NO ES APC, seguimos con la lógica existente (EMS / Trolley / VoD) ----------
     priority1_exact = prioridades[0] if len(prioridades) >= 1 else None
     priority2_exact = prioridades[1] if len(prioridades) >= 2 else None
 
-    # Hook E-Trolley si la Prioridad 2 = "Reducir consumo de combustible fósil"
-    # Y SOLO si el tipo de mina es Tajo abierto
+    # 🔌 Hook E-Trolley: mina a tajo abierto + prioridad en combustible fósil
     if _norm(priority2_exact) == _norm("Reducir consumo de combustible fósil") and \
        st.session_state.get("tipo_mina", "") == "Tajo abierto":
 
-        # Paso 3: parámetros
-        if st.session_state.get("et_step", 1) == 1:
+        # Inicializa sub-pasos de E-Trolley si es la primera vez
+        if "et_step" not in st.session_state:
+            st.session_state.et_step = 1
+
+        # 🔌 Hook E-Trolley: mina a tajo abierto + prioridad en combustible fósil
+    if _norm(priority2_exact) == _norm("Reducir consumo de combustible fósil") and \
+       st.session_state.get("tipo_mina", "") == "Tajo abierto":
+
+        # Inicializa sub-pasos de E-Trolley si es la primera vez
+        if "et_step" not in st.session_state:
+            st.session_state.et_step = 1
+
+        # 👉 Título distinto según sub-paso
+        if st.session_state.et_step == 1:
             st.header("Paso 3 de 4: E-Trolley — Parámetros del caso")
             et_ui_step1()
-
-        # Paso 4: resultados
         else:
-            st.header("Paso 4 de 4: E-Trolley — Resultados del caso")
+            st.header("Paso 4 de 4: E-Trolley — Resultados del análisis")
             et_ui_step2()
 
         st.stop()
+
 
 
 
@@ -1399,12 +1791,12 @@ if st.session_state.step == 3:
         ems_ui_step3()
         st.stop()
 
-    # Si no estamos en EMS ni E-Trolley, forzamos VoD
+    # Si no estamos en EMS ni E-Trolley, forzamos VoD (como ya tenías)
     st.session_state.ems_active = False
-    st.session_state.pop("ems_params", None)  # opcional, para limpiar parámetros EMS
-
-    # Flujo VoD normal
+    st.session_state.pop("ems_params", None)
     st.header("Paso 3 de 4: Nivel actual y objetivo")
+    ...
+
 
 
     col1, col2 = st.columns(2)
@@ -1464,8 +1856,14 @@ if st.session_state.step == 3:
 
 # Paso 4 de 4
 if st.session_state.step == 4:
-    
-        # --- Si el flujo activo es EMS, mostrar cálculo EMS y salir
+
+    # ---------- 1) Si estamos en modo APC, mostrar Beneficios APC ----------
+    if st.session_state.get("apc_mode"):
+        st.header("Paso 4 de 4: Advanced Process Control (APC) — Beneficios estimados")
+        apc_step2()
+        st.stop()
+
+    # ---------- 2) Si el flujo activo es EMS, mostrar cálculo EMS ----------
     if st.session_state.get("ems_active"):
         ems_ui_step4()
         st.stop()
