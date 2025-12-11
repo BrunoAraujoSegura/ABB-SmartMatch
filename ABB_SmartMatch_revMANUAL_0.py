@@ -1191,7 +1191,7 @@ def et_ui_step2():
     ))
     fig_tm.update_yaxes(range=[0, ymax_ton], dtick=ymax_ton/7.0, title="MTM")
     fig_tm.update_xaxes(title="Año")
-    fig_tm.update_layout(title="CUMULATIVE TONNES MOVED (M TM)", margin=dict(l=10,r=10,t=60,b=40))
+    fig_tm.update_layout(title="Toneladas acumuladas movidas(M TM)", margin=dict(l=10,r=10,t=60,b=40))
     fig_tm.add_annotation(x=years[-1], y=cum_ton_c1[-1], text=f"{cum_ton_c1[-1]:.0f} MTM",
                           showarrow=True, arrowhead=2, ax=30, ay=-20)
     fig_tm.add_annotation(x=years[-1], y=cum_ton_c2[-1], text=f"{cum_ton_c2[-1]:.0f} MTM",
@@ -1225,7 +1225,7 @@ def et_ui_step2():
     ))
     fig_co2.update_yaxes(range=[0, ymax_co2], dtick=max(ymax_co2/7.0, 0.5), title="K tCO₂")
     fig_co2.update_xaxes(title="Año")
-    fig_co2.update_layout(title="CUMULATIVE CO₂ SAVED (K tCO₂)", margin=dict(l=10,r=10,t=60,b=40))
+    fig_co2.update_layout(title="CO₂ acumulado evitado(K tCO₂)", margin=dict(l=10,r=10,t=60,b=40))
     fig_co2.add_annotation(x=years[-1], y=cum_co2_saved_kt[-1],
                            text=f"{cum_co2_saved_kt[-1]:.1f} KtCO₂",
                            showarrow=True, arrowhead=2, ax=30, ay=-20)
