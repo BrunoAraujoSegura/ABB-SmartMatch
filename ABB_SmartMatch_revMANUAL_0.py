@@ -1225,7 +1225,7 @@ def et_ui_step2():
     ))
     fig_co2.update_yaxes(range=[0, ymax_co2], dtick=max(ymax_co2/7.0, 0.5), title="K tCO₂")
     fig_co2.update_xaxes(title="Año")
-    fig_co2.update_layout(title="CO₂ acumulado evitado(K tCO₂)", margin=dict(l=10,r=10,t=60,b=40))
+    fig_co2.update_layout(title="Ahorro acumulado de CO₂(K tCO₂)", margin=dict(l=10,r=10,t=60,b=40))
     fig_co2.add_annotation(x=years[-1], y=cum_co2_saved_kt[-1],
                            text=f"{cum_co2_saved_kt[-1]:.1f} KtCO₂",
                            showarrow=True, arrowhead=2, ax=30, ay=-20)
