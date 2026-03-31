@@ -16,7 +16,7 @@ except:
     pass
 
 st.title("Smart Simulator")
-st.markdown("Empareja tu necesidad con la mejor solución de ABB.")
+st.markdown("Align your goals with the right ABB solution.")
 
 #Botones 
 if "step" not in st.session_state:
@@ -52,12 +52,12 @@ st.markdown("""
 # =====================================
 # Constantes / Modelo de negocio
 # =====================================
-NIVELES = ["Esencial", "Básico", "Operación Efectiva", "Smart"]
+NIVELES = ["Essential", "Basic", "Effective Operation", "Smart"]
 TRANSICION_A_CASO = {
-    ("Esencial", "Básico"): 1,
-    ("Básico", "Operación Efectiva"): 2,
-    ("Operación Efectiva", "Smart"): 3,
-    ("Esencial", "Smart"): 4
+    ("Essential", "Basic"): 1,
+    ("Basic", "Effective Operation"): 2,
+    ("Effective Operation", "Smart"): 3,
+    ("Essential", "Smart"): 4
 }
 # Esquemas programados para C2
 ESQUEMAS = {
@@ -68,10 +68,10 @@ ESQUEMAS = {
 
 # CAPEX por ventilador (valores de ejemplo; reemplazar por Excel si corresponde)
 CAPEX_POR_VEN_DEFAULT = {
-    ("Esencial", "Básico"):  4000.0,
-    ("Básico", "Operación Efectiva"): 7000.0,
-    ("Operación Efectiva", "Smart"): 12000.0,
-    ("Esencial", "Smart"):  20000.0,
+    ("Essential", "Basic"):  4000.0,
+    ("Basic", "Effective Operation"): 7000.0,
+    ("Effective Operation", "Smart"): 12000.0,
+    ("Essential", "Smart"):  20000.0,
 }
 
 
@@ -147,10 +147,10 @@ ETROLLEY_DATA = {
 
     # ← OJO: dejamos 7.0 L/km como valor base en subida
     "truck_catalog": {
-        "Komatsu 830E":   {"potencia_kW": 2500, "peso_t": 380, "capacidad_t": 230, "diesel_l_km_subida": 7.0},
-        "Komatsu 860E":   {"potencia_kW": 2700, "peso_t": 400, "capacidad_t": 240, "diesel_l_km_subida": 7.0},
-        "Komatsu 930E-4": {"potencia_kW": 2850, "peso_t": 410, "capacidad_t": 290, "diesel_l_km_subida": 7.0},
-        "Komatsu 980E-4": {"potencia_kW": 3500, "peso_t": 420, "capacidad_t": 360, "diesel_l_km_subida": 7.0},
+        "Komatsu 830E":   {"power_kW": 2500, "peso_t": 380, "capacidad_t": 230, "diesel_l_km_uphill": 7.0},
+        "Komatsu 860E":   {"power_kW": 2700, "peso_t": 400, "capacidad_t": 240, "diesel_l_km_uphill": 7.0},
+        "Komatsu 930E-4": {"power_kW": 2850, "peso_t": 410, "capacidad_t": 290, "diesel_l_km_uphill": 7.0},
+        "Komatsu 980E-4": {"power_kW": 3500, "peso_t": 420, "capacidad_t": 360, "diesel_l_km_uphill": 7.0},
     },
     "retrofit_cost_usd": {
         "Komatsu 830E":   1_100_000,
@@ -165,7 +165,7 @@ ETROLLEY_DATA = {
         "Komatsu 980E-4": 7_500_000,
     },
 
-    "vel_subida_diesel_kmh": 11.8,
+    "vel_uphill_diesel_kmh": 11.8,
     "factor_vel_trolley": 1.7,    # ↑ velocidad en subida con trolley
     "tasa_desc_npvt": 0.08,
     "horiz_anios": 10,
@@ -173,7 +173,7 @@ ETROLLEY_DATA = {
 
 # (si algún modelo no trae 'diesel_l_km_subida', le ponemos 7.0 por defecto)
 for _m, _d in ETROLLEY_DATA["truck_catalog"].items():
-    _d.setdefault("diesel_l_km_subida", 7.0)
+    _d.setdefault("diesel_l_km_uphill", 7.0)
 
 
 
@@ -181,14 +181,14 @@ ETROLLEY_DATA.update({
     "diesel_price_usd_l": 1.00,
     "kwh_per_km_trolley": 12.0,
     "cycles_per_truck_per_year": 4200,
-    "subidas_por_ciclo": 2,   # por defecto
+    "uphills_por_ciclo": 2,   # por defecto
 })
 
 def get_diesel_l_km_subida(model: str) -> float:
     """
-    Devuelve L/km en subida para 'model'.
-    Prioriza override en st.session_state[f"diesel_subida__{model}"].
-    Falls back: truck_catalog[model]['diesel_l_km_subida'] o 7.0.
+    Returns uphill L/km for 'model'.
+    Prioritizes override in st.session_state[f"diesel_uphill__{model}"].
+    Falls back: truck_catalog[model]['diesel_l_km_uphill'] or 7.0.
     """
     override_key = f"diesel_subida__{model}"
     if override_key in st.session_state:
@@ -197,21 +197,21 @@ def get_diesel_l_km_subida(model: str) -> float:
         except:
             pass
     cat = ETROLLEY_DATA.get("truck_catalog", {}).get(model, {})
-    return float(cat.get("diesel_l_km_subida", cat.get("diesel_l_km", 7.0)))
+    return float(cat.get("diesel_l_km_uphill", cat.get("diesel_l_km", 7.0)))
 
 
 
 
 
 for _m, _d in ETROLLEY_DATA["truck_catalog"].items():
-    if "diesel_l_km_subida" not in _d and "diesel_l_km" in _d:
-        _d["diesel_l_km_subida"] = _d["diesel_l_km"]
+    if "diesel_l_km_uphill" not in _d and "diesel_l_km" in _d:
+        _d["diesel_l_km_uphill"] = _d["diesel_l_km"]
 
 
 
 
 def et_speed_kpi():
-    return ETROLLEY_DATA["vel_subida_diesel_kmh"] * ETROLLEY_DATA["factor_vel_trolley"]
+    return ETROLLEY_DATA["vel_uphill_diesel_kmh"] * ETROLLEY_DATA["factor_vel_trolley"]
 
 def et_costs(dist_km, n_trucks, conting_pct, energy_usd_kwh, maint_line_y, inv_type, model):
     cost_per_km = ETROLLEY_DATA["cost_per_km_usd"]
@@ -221,7 +221,7 @@ def et_costs(dist_km, n_trucks, conting_pct, energy_usd_kwh, maint_line_y, inv_t
     capex_total = (capex_line + capex_trucks) * (1 + conting_pct/100.0)
     opex_energy = 0.0  # pendiente de fórmula exacta
     opex_total = float(maint_line_y) + opex_energy
-    return capex_total, opex_total, {"CAPEX línea": capex_line, "CAPEX camiones": capex_trucks}
+    return capex_total, opex_total, {"CAPEX línea": capex_line, "CAPEX trucks": capex_trucks}
 
 def et_finance_monthly(capex_total_usd: float,
                        opex_anual_usd: float,
@@ -286,7 +286,7 @@ def trucks_html(n: int, model: str) -> str:
 
 def get_diesel_l_km_subida(model: str) -> float:
     cat = ETROLLEY_DATA["truck_catalog"].get(model, {})
-    return float(cat.get("diesel_l_km_subida", cat.get("diesel_l_km", 7.0)))
+    return float(cat.get("diesel_l_km_uphill", cat.get("diesel_l_km", 7.0)))
 
 #EMS:
 # ===================== EMS (PASO 3 y PASO 4) =====================
@@ -296,22 +296,22 @@ def get_diesel_l_km_subida(model: str) -> float:
 # ===================== EMS (PASO 3 y PASO 4) =====================
 
 def ems_ui_step3():
-    st.header("Paso 3 de 4: Energy Management System — Parámetros del caso")
-    st.caption("Caso de referencia basado en el ejemplo de Excel (puedes ajustar todos los valores).")
+    st.header("Step 3 of 4: Energy Management System — Case Parameters")
+    st.caption("Caso de reference basado en el ejemplo de Excel (puedes ajustar todos los valuees).")
 
     # ---------- Parámetros generales ----------
     col1, col2 = st.columns(2)
     with col1:
         # Excel: 95% disponibilidad, 0.05 USD/kWh
         disponibilidad = st.number_input(
-            "Disponibilidad promedio (%)",
+            "Average availability (%)",
             0.0, 100.0,
             95.0,
             0.5
         ) / 100.0
 
         precio_kwh = st.number_input(
-            "Precio energía (USD/kWh)",
+            "Energy price (USD/kWh)",
             0.01, 5.00,
             0.05,
             0.01
@@ -319,14 +319,14 @@ def ems_ui_step3():
 
         # Excel: 10% optimista, 5% moderado
         ahorro_opt_pct = st.number_input(
-            "Ahorro estimado optimista (%)",
+            "Estimated optimistic savings (%)",
             1.0, 30.0,
             10.0,
             0.5
         ) / 100.0
 
         ahorro_mod_pct = st.number_input(
-            "Ahorro estimado moderado (%)",
+            "Estimated moderate savings (%)",
             1.0, 30.0,
             5.0,
             0.5
@@ -335,18 +335,18 @@ def ems_ui_step3():
     with col2:
         # Excel: costo EF de referencia 700 kUSD
         inversion_kusd = st.number_input(
-            "Inversión estimada del EMS (kUSD)",
+            "Estimated EMS investment (kUSD)",
             0.0, 5_000.0,
             700.0,
             10.0
         )
         inversion_usd = inversion_kusd * 1000.0
 
-        _ = st.checkbox("Incluir subprocesos secundarios", value=True)
-        _ = st.number_input("Peso relativo de subprocesos (%)", 0.0, 50.0, 5.0, 0.5)
+        _ = st.checkbox("Include secondary subprocesses", value=True)
+        _ = st.number_input("Relative weight of subprocesses (%)", 0.0, 50.0, 5.0, 0.5)
 
     st.markdown("---")
-    st.subheader("Áreas / procesos a monitorear")
+    st.subheader("Areas / processes to monitor")
 
     # ---------- Catálogo base (caso Excel) ----------
     # Potencia MW (EA) y QTY exactamente como en tu hoja:
@@ -372,7 +372,7 @@ def ems_ui_step3():
         .ems-area-row:hover {
             border-color: #d1d5db;
         }
-        /* hace circulares los checkboxes de esta sección */
+        /* make the checkboxes in this section circular */
         div[data-testid="stCheckbox"] input[type="checkbox"] {
             border-radius: 50%;
             width: 18px;
@@ -394,7 +394,7 @@ def ems_ui_step3():
             st.session_state.ems_procs.setdefault(
                 k, {"mw": v["mw"], "qty": v["qty"], "expanded": True}
             )
-        # Compatibilidad con versión anterior que usaba "enabled"
+        # Compatibilidad con versión Previous que usaba "enabled"
         for k, data in st.session_state.ems_procs.items():
             if "expanded" not in data:
                 data["expanded"] = data.get("enabled", True)
@@ -422,7 +422,7 @@ def ems_ui_step3():
                 col_mw, col_qty = st.columns(2)
                 with col_mw:
                     mw = st.number_input(
-                        "Potencia MW (EA)",
+                        "Power MW (EA)",
                         0.0, 200.0,
                         float(data["mw"]),
                         0.1,
@@ -430,7 +430,7 @@ def ems_ui_step3():
                     )
                 with col_qty:
                     qty = st.number_input(
-                        "Cantidad (QTY)",
+                        "Quantity (QTY)",
                         0, 20,
                         int(data["qty"]),
                         1,
@@ -445,28 +445,28 @@ def ems_ui_step3():
     if st.session_state.ems_procs:
         df = pd.DataFrame(
             [{
-                "Área / Proceso": k,
-                "Potencia MW (EA)": v["mw"],
-                "Cantidad (QTY)":   v["qty"],
+                "Area / Process": k,
+                "Power MW (EA)": v["mw"],
+                "Quantity (QTY)":   v["qty"],
             } for k, v in st.session_state.ems_procs.items()]
         )
     else:
-        df = pd.DataFrame(columns=["Área / Proceso", "Potencia MW (EA)", "Cantidad (QTY)"])
+        df = pd.DataFrame(columns=["Area / Process", "Power MW (EA)", "Quantity (QTY)"])
 
-    df["SubTotal MW"] = df["Potencia MW (EA)"] * df["Cantidad (QTY)"]
+    df["Subtotal MW"] = df["Power MW (EA)"] * df["Quantity (QTY)"]
     df["Disponibilidad"] = disponibilidad
-    df["Costo Energía (USD/año)"] = (
-    df["SubTotal MW"] * 1000 * 8760 * disponibilidad * precio_kwh
+    df["Energy Cost (USD/year)"] = (
+    df["Subtotal MW"] * 1000 * 8760 * disponibilidad * precio_kwh
     )
 
     
-    total_cost = float(df["Costo Energía (USD/año)"].sum()) if not df.empty else 0.0
+    total_cost = float(df["Energy Cost (USD/year)"].sum()) if not df.empty else 0.0
     ahorro_opt = total_cost * ahorro_opt_pct
     ahorro_mod = total_cost * ahorro_mod_pct
 
-    st.markdown("### Resumen calculado")
+    st.markdown("### Calculated summary")
     st.dataframe(
-        df[["Área / Proceso", "Potencia MW (EA)", "Cantidad (QTY)", "SubTotal MW", "Costo Energía (USD/año)"]],
+        df[["Area / Process", "Power MW (EA)", "Quantity (QTY)", "Subtotal MW", "Energy Cost (USD/year)"]],
         use_container_width=True,
         height=min(300, 60 + 28 * max(1, len(df)))
     )
@@ -484,13 +484,13 @@ def ems_ui_step3():
     st.markdown("---")
     b1, b2 = st.columns(2)
     with b1:
-        if st.button("◀ Volver a priorización", use_container_width=True, key="ems_back_prior"):
+        if st.button("◀ Back to prioritization", use_container_width=True, key="ems_back_prior"):
             st.session_state.ems_active = False
             st.session_state.pop("ems_params", None)
             st.session_state.step = 2
             st.rerun()
     with b2:
-        if st.button("Calcular rentabilidad ▶", type="primary", use_container_width=True, key="ems_go_calc"):
+        if st.button("Calculate profitability ▶", type="primary", use_container_width=True, key="ems_go_calc"):
             st.session_state.ems_active = True
             st.session_state.ems_params = dict(
                 total_cost=total_cost,
@@ -507,23 +507,23 @@ def ems_ui_step4():
     import numpy as np
     import plotly.graph_objects as go
 
-    st.header("Paso 4 de 4: Energy Management System — Cálculo de Rentabilidad")
+    st.header("Step 4 of 4: Energy Management System — Profitability Calculation")
 
     # Parámetros calculados en el Paso 3
     P = st.session_state.get("ems_params", {})
     if not P:
-        st.warning("Primero completa el Paso 3 (EMS — Parámetros del caso).")
-        if st.button("Volver a EMS — Parámetros", use_container_width=True, key="ems_go_back_p3"):
+        st.warning("First complete el Step 3 (EMS — Case Parameters).")
+        if st.button("Back to EMS — Parameters", use_container_width=True, key="ems_go_back_p3"):
             st.session_state.step = 3
             st.rerun()
         return
 
-    ahorro_opt = float(P["ahorro_opt"])
-    ahorro_mod = float(P["ahorro_mod"])
+    ahorro_opt = float(P["savings_opt"])
+    ahorro_mod = float(P["savings_mod"])
     inversion  = float(P["inversion"])
 
     # ========= BLOQUE: RESUMEN DE INFORMACIÓN (igual estilo que VoD / E-Trolley) =========
-    st.markdown("### Resultado del análisis :")
+    st.markdown("### Resultado del analysis :")
 
     card_line_style = """
         background-color: #f7f8f9;
@@ -538,18 +538,18 @@ def ems_ui_step4():
         return colores[idx] if idx < len(colores) else "#f7f8f9"
 
     etiquetas_prioridad = [
-        "🔴 Prioridad Alta",
-        "🟠 Prioridad Media",
-        "🟡 Prioridad Baja"
+        "🔴 High Priority",
+        "🟠 Medium Priority",
+        "🟡 Low Priority"
     ]
 
     col1, col2 = st.columns([1, 1.2])
 
     # ---- Columna izquierda: resumen de datos base ----
     with col1:
-        st.subheader("Resumen de información")
+        st.subheader("Information Summary")
 
-        tipo_mina      = st.session_state.get("tipo_mina", "—")
+        tipo_mina      = st.session_state.get("tipo_mine", "—")
         tipo_material  = st.session_state.get("tipo_material", "—")
         produccion     = st.session_state.get("produccion", "—")
 
@@ -563,7 +563,7 @@ def ems_ui_step4():
        # st.markdown(f"• **Inversión estimada EMS:** {st.session_state.ems_inversion:.1f} kUSD")
     # ---- Columna derecha: desafíos seleccionados ----
     with col2:
-        st.subheader("Desafíos seleccionados")
+        st.subheader("Selected Challenges")
 
         prioridades = st.session_state.get("prioridades", [])
         for idx, d in enumerate(prioridades[:3]):
@@ -622,7 +622,7 @@ def ems_ui_step4():
     pb_mod = _payback(acum_mod)
 
     # ---- Tarjetas tipo KPI (3 columnas, estilo E-Trolley) ----
-    st.subheader("Resultados económicos del EMS")
+    st.subheader("EMS Economic Results")
 
     valor_opt = f"USD {_fmt_short(ahorro_opt,1)}"
     valor_mod = f"USD {_fmt_short(ahorro_mod,1)}"
@@ -630,7 +630,7 @@ def ems_ui_step4():
 
     delta_opt = f"Payback optimista: M{pb_opt}" if pb_opt else ""
     delta_mod = f"Payback moderado: M{pb_mod}" if pb_mod else ""
-    delta_inv = "Inversión inicial referencial"
+    delta_inv = "Reference initial investment"
 
     colA, colB, colC = st.columns(3)
 
@@ -642,7 +642,7 @@ def ems_ui_step4():
             text-align:center;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         ">
-            <h2 style="margin:0; font-weight:700; color:#000;">{valor}</h2>
+            <h2 style="margin:0; font-weight:700; color:#000;">{value}</h2>
             <p style="margin:0; color:#555; font-size:15px;">{subtitulo}</p>
             <p style="margin-top:5px; color:#008000; font-size:13px;">{delta}</p>
         </div>
@@ -651,7 +651,7 @@ def ems_ui_step4():
     colA.markdown(
         kpi_style.format(
             valor=valor_opt,
-            subtitulo="Ahorro anual (optimista)",
+            subtitulo="Annual savings (optimistic)",
             delta=delta_opt
         ),
         unsafe_allow_html=True
@@ -659,7 +659,7 @@ def ems_ui_step4():
     colB.markdown(
         kpi_style.format(
             valor=valor_mod,
-            subtitulo="Ahorro anual (moderado)",
+            subtitulo="Annual savings (moderate)",
             delta=delta_mod
         ),
         unsafe_allow_html=True
@@ -667,22 +667,22 @@ def ems_ui_step4():
     colC.markdown(
         kpi_style.format(
             valor=valor_inv,
-            subtitulo="Inversión estimada EMS",
+            subtitulo="Estimated EMS investment",
             delta=delta_inv
         ),
         unsafe_allow_html=True
     )
 
-    st.caption("• Ahorros calculados a partir de la reducción de consumo energético gestionada por el EMS.")
+    st.caption("• Savings calculated from the reduction in energy consumption managed by the EMS.")
 
     # ========= GRÁFICA DE FLUJO ACUMULADO =========
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=meses, y=acum_opt, mode="lines+markers", name="Escenario optimista"))
-    fig.add_trace(go.Scatter(x=meses, y=acum_mod, mode="lines+markers", name="Escenario moderado"))
-    fig.add_hline(y=0, line_dash="dot", annotation_text="Punto de equilibrio")
+    fig.add_trace(go.Scatter(x=meses, y=acum_opt, mode="lines+markers", name="Optimistic scenario"))
+    fig.add_trace(go.Scatter(x=meses, y=acum_mod, mode="lines+markers", name="Moderate scenario"))
+    fig.add_hline(y=0, line_dash="dot", annotation_text="Break-even point")
     fig.update_layout(
-        title="Flujo de caja acumulado EMS (24 meses)",
-        xaxis_title="Mes",
+        title="Accumulated Economic Savings (24 months)",
+        xaxis_title="Months",
         yaxis_title="USD",
         height=420
     )
@@ -692,11 +692,11 @@ def ems_ui_step4():
     st.markdown("---")
     b1, b2 = st.columns(2)
     with b1:
-        if st.button("◀ Volver a EMS — Parámetros", use_container_width=True, key="ems_back_to_p3"):
+        if st.button("◀ Back to EMS — Parameters", use_container_width=True, key="ems_back_to_p3"):
             st.session_state.step = 3
             st.rerun()
     with b2:
-        st.button("📤 Exportar reporte (próx.)", use_container_width=True, key="ems_export")
+        st.button("📤 Export report (coming soon)", use_container_width=True, key="ems_export")
 
 
 #FIN EMS #
@@ -707,76 +707,76 @@ def ems_ui_step4():
 
 def et_ui_step1():
     """
-    Paso 3 (vista de parámetros) — E-Trolley
-    Guarda parámetros en st.session_state['et_params'] y pasa a step 2.
+    Step 3 (parameter view) — E-Trolley
+    Saves parameters in st.session_state['et_params'] and moves to step 2.
     """
     # Catálogo/valores por defecto seguros
     catalog = list(ETROLLEY_DATA["truck_catalog"].keys()) or ["Komatsu 830E"]
     if "Komatsu 830E" not in ETROLLEY_DATA["truck_catalog"]:
-        ETROLLEY_DATA["truck_catalog"]["Komatsu 830E"] = {"diesel_l_km_subida": 7.0}
+        ETROLLEY_DATA["truck_catalog"]["Komatsu 830E"] = {"diesel_l_km_uphill": 7.0}
 
     c1, c2 = st.columns(2)
 
     # -------- Columna izquierda (c1)
     with c1:
-        dist_km  = st.number_input("Distancia del tramo (km)", 0.5, 20.0, 1.7, 0.1, key="et1_dist_km")
-        n_trucks = st.slider("Cantidad de camiones", 2, 12, 4, step=1, key="et1_n_trucks")
-        inv_type = st.radio("Tipo de inversión", ["Compra nueva","Retrofit"], horizontal=True, key="et1_inv_type")
+        dist_km  = st.number_input("Segment distance (km)", 0.5, 20.0, 1.7, 0.1, key="et1_dist_km")
+        n_trucks = st.slider("Number of trucks", 2, 12, 4, step=1, key="et1_n_trucks")
+        inv_type = st.radio("Investment type", ["New purchase","Retrofit"], horizontal=True, key="et1_inv_type")
 
         # costo energía
         energy   = st.number_input(
-            "Costo de energía (USD/kWh)", 0.0, 2.0,
+            "Energy cost (USD/kWh)", 0.0, 2.0,
             ETROLLEY_DATA.get("default_energy_usd_kwh", 0.11), 0.01, key="et1_energy"
         )
 
     # -------- Columna derecha (c2)
     with c2:
-        pendiente = st.number_input("Pendiente promedio (%)", 0.0, 25.0, 8.0, 0.5, key="et1_pend")
-        model     = st.selectbox("Modelo Komatsu", catalog, index=0, key="et1_model")
-        conting   = st.number_input("Contingencia (%)", 0.0, 30.0, 10.0, 0.5, key="et1_conting")
+        pendiente = st.number_input("Average slope (%)", 0.0, 25.0, 8.0, 0.5, key="et1_pend")
+        model     = st.selectbox("Komatsu model", catalog, index=0, key="et1_model")
+        conting   = st.number_input("Contingency (%)", 0.0, 30.0, 10.0, 0.5, key="et1_conting")
         maint_y_k = st.number_input(
-            "Mantenimiento trolley (kUSD/año)", 0.0, 5000.0,
+            "Trolley maintenance (kUSD/year)", 0.0, 5000.0,
             ETROLLEY_DATA.get("maintenance_line_usd_y", 120_000.0)/1000.0, 10.0, key="et1_maint_k"
         )
         maint_y   = maint_y_k * 1000.0
 
     # --- Ajustes avanzados (persisten en sesión) ---
-    with st.expander("Ajustes avanzados del modelo (usa valores del Excel)", expanded=False):
+    with st.expander("Advanced model settings (use Excel values)", expanded=False):
         st.session_state["diesel_price_usd_l"] = st.number_input(
-            "Precio diésel (USD/L)", 0.10, 5.00,
+            "Diesel price (USD/L)", 0.10, 5.00,
             float(st.session_state.get("diesel_price_usd_l", ETROLLEY_DATA.get("diesel_price_usd_l", 1.00))), 0.05
         )
         st.session_state["kwh_per_km_trolley"] = st.number_input(
-            "Consumo eléctrico trolley (kWh/km)", 1.0, 80.0,
+            "Trolley electric consumption (kWh/km)", 1.0, 80.0,
             float(st.session_state.get("kwh_per_km_trolley", ETROLLEY_DATA.get("kwh_per_km_trolley", 12.0))), 0.5
         )
         st.session_state["cycles_per_truck_per_year"] = st.number_input(
-            "Ciclos por camión por año (C1)", 2000, 9000,
+            "Cycles per truck per year (C1)", 2000, 9000,
             int(st.session_state.get("cycles_per_truck_per_year", ETROLLEY_DATA.get("cycles_per_truck_per_year", 4200))), 100
         )
-        st.session_state["subidas_por_ciclo"] = st.number_input(
-            "Subidas por ciclo (ida+vuelta = 2)", 1, 4,
-            int(st.session_state.get("subidas_por_ciclo", ETROLLEY_DATA.get("subidas_por_ciclo", 2))), 1
+        st.session_state["uphills_por_ciclo"] = st.number_input(
+            "Uphills per cycle (round trip = 2)", 1, 4,
+            int(st.session_state.get("uphills_por_ciclo", ETROLLEY_DATA.get("uphills_por_ciclo", 2))), 1
         )
 
         # Editor puntual de consumo en subida por modelo
-        edit_model = st.selectbox("Modelo para editar consumo diésel (subida)", catalog, index=0, key="et1_edit_model")
-        cur_val = ETROLLEY_DATA["truck_catalog"].get(edit_model, {}).get("diesel_l_km_subida",
+        edit_model = st.selectbox("Model for editing uphill diesel consumption", catalog, index=0, key="et1_edit_model")
+        cur_val = ETROLLEY_DATA["truck_catalog"].get(edit_model, {}).get("diesel_l_km_uphill",
                    ETROLLEY_DATA["truck_catalog"].get(edit_model, {}).get("diesel_l_km", 7.0))
-        new_diesel = st.number_input("Diésel (L/km) en subida — modelo", 0.1, 100.0, float(cur_val), 0.1, key="et1_diesel_up")
+        new_diesel = st.number_input("Uphill diesel (L/km) — model", 0.1, 100.0, float(cur_val), 0.1, key="et1_diesel_up")
         # graba override
         ETROLLEY_DATA["truck_catalog"].setdefault(edit_model, {})
-        ETROLLEY_DATA["truck_catalog"][edit_model]["diesel_l_km_subida"] = float(new_diesel)
+        ETROLLEY_DATA["truck_catalog"][edit_model]["diesel_l_km_uphill"] = float(new_diesel)
 
     # -------- Botones navegación --------
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
-        if st.button("◀ Volver a priorización", key="btn_et_back", use_container_width=True):
+        if st.button("◀ Back to prioritization", key="btn_et_back", use_container_width=True):
             st.session_state.et_step = 1
             st.session_state.step = 2
             st.rerun()
     with col_btn2:
-        if st.button("Calcular rentabilidad ▶", key="btn_et_calc", type="primary", use_container_width=True):
+        if st.button("Calculate profitability ▶", key="btn_et_calc", type="primary", use_container_width=True):
             st.session_state.et_step = 2
             st.session_state.et_params = dict(
                 dist_km=dist_km, pendiente=pendiente, n_trucks=n_trucks, model=model,
@@ -788,14 +788,14 @@ def et_ui_step1():
 
 def et_savings_anual_usd(dist_km, n_trucks, model, energy_usd_kwh):
     """
-    Ahorro neto anual = (diesel ahorrado * precio) - (kWh consumidos * tarifa)
-    * Usa km en **subida**: dist_km * ciclos * subidas_por_ciclo * n_trucks
-    * diésel L/km es el valor 'en subida' del modelo seleccionado
+    Annual net savings = (diesel saved * price) - (kWh consumed * tariff)
+    * Use **uphill** km: dist_km * cycles * uphills_per_cycle * n_trucks
+    * diesel L/km is the selected model's uphill value
     """
     cat = ETROLLEY_DATA["truck_catalog"][model]
 
     cycles  = int(ETROLLEY_DATA.get("cycles_per_truck_per_year", 5200))
-    subidas = int(ETROLLEY_DATA.get("subidas_por_ciclo", 2))
+    subidas = int(ETROLLEY_DATA.get("uphills_por_ciclo", 2))
     kwh_km  = float(ETROLLEY_DATA.get("kwh_per_km_trolley", 10.0))
     diesel_price = float(ETROLLEY_DATA.get("diesel_price_usd_l", 1.35))
 
@@ -856,7 +856,7 @@ _TROLLEYB = {
 }
 
 def _hlookup_trolleyB(model: str, key: str) -> float:
-    """Emula BUSCARH sobre _TROLLEYB (valores en M$)."""
+    """Emula BUSCARH sobre _TROLLEYB (valuees en M$)."""
     try:
         return float(_TROLLEYB[model][key])
     except KeyError:
@@ -897,8 +897,8 @@ def et_ui_step2():
     # ---------- 1) Parámetros guardados ----------
     P = st.session_state.get("et_params", {})
     if not P:
-        st.warning("No hay parámetros. Regresa al Paso 1.")
-        if st.button("Volver", use_container_width=True, key="et2_volver_btn"):
+        st.warning("There are no parameters. Go back to Step 1.")
+        if st.button("Back", use_container_width=True, key="et2_volver_btn"):
             st.session_state.et_step = 1
         return
 
@@ -917,18 +917,18 @@ def et_ui_step2():
         return colores[index] if index < len(colores) else "#f7f8f9"
 
     etiquetas_prioridad = [
-        "🔴 Prioridad Alta",
-        "🟠 Prioridad Media",
-        "🟡 Prioridad Baja"
+        "🔴 High Priority",
+        "🟠 Medium Priority",
+        "🟡 Low Priority"
     ]
 
     col_res1, col_res2 = st.columns([1, 1])
 
     # ---- Columna izquierda: resumen general + parámetros E-Trolley ----
     with col_res1:
-        st.subheader("Resumen de información")
+        st.subheader("Information Summary")
 
-        tipo_mina     = st.session_state.get("tipo_mina", "-")
+        tipo_mina     = st.session_state.get("tipo_mine", "-")
         tipo_material = st.session_state.get("tipo_material", "-")
         produccion    = st.session_state.get("produccion", "-")
 
@@ -977,7 +977,7 @@ def et_ui_step2():
             unsafe_allow_html=True
         )
         st.markdown(
-            f"<div style='{card_line_style}'>• Costo de energía: "
+            f"<div style='{card_line_style}'>• Energy costs: "
             f"<b>{P.get('energy', 0):.3f} USD/kWh</b></div>",
             unsafe_allow_html=True
         )
@@ -989,7 +989,7 @@ def et_ui_step2():
 
     # ---- Columna derecha: desafíos seleccionados ----
     with col_res2:
-        st.subheader("Desafíos seleccionados")
+        st.subheader("Selected Challenges")
 
         prioridades = st.session_state.get("prioridades", [])
         for idx, d in enumerate(prioridades[:3]):
@@ -1025,15 +1025,15 @@ def et_ui_step2():
     # ---------- 1) Parámetros guardados ----------
     P = st.session_state.get("et_params", {})
     if not P:
-        st.warning("No hay parámetros. Regresa al Paso 1.")
-        if st.button("Volver", use_container_width=True, key="et2_volver_btn"):
+        st.warning("There are no parameters. Go back to Step 1.")
+        if st.button("Back", use_container_width=True, key="et2_volver_btn"):
             st.session_state.et_step = 1
         return
 
     dist_km        = float(P.get("dist_km", 0.0))
     n_trucks       = int(P.get("n_trucks", 0))
     model          = str(P.get("model") or list(ETROLLEY_DATA["truck_catalog"].keys())[0])
-    inv_type       = str(P.get("inv_type", "Compra nueva"))
+    inv_type       = str(P.get("inv_type", "New purchase"))
     conting_pct    = float(P.get("conting", 0.0))
     energy_usd_kwh = float(P.get("energy", ETROLLEY_DATA.get("default_energy_usd_kwh", 0.11)))
     maint_line_y   = float(P.get("maint_y", ETROLLEY_DATA.get("maintenance_line_usd_y", 120_000.0)))
@@ -1043,13 +1043,13 @@ def et_ui_step2():
     kwh_per_km_trolley  = float(st.session_state.get("kwh_per_km_trolley", ETROLLEY_DATA.get("kwh_per_km_trolley", 12.0)))
     cycles_c1_per_truck = int(st.session_state.get("cycles_per_truck_per_year", ETROLLEY_DATA.get("cycles_per_truck_per_year", 4200)))
     cycles_c2_per_truck = int(st.session_state.get("cycles_per_truck_per_year_c2", int(ETROLLEY_DATA.get("cycles_per_truck_per_year", 4200)*1.7)))
-    subidas_por_ciclo   = int(st.session_state.get("subidas_por_ciclo", ETROLLEY_DATA.get("subidas_por_ciclo", 2)))
+    subidas_por_ciclo   = int(st.session_state.get("uphills_por_ciclo", ETROLLEY_DATA.get("uphills_por_ciclo", 2)))
 
     # Override opcional de consumo en subida
     ss_key = f"diesel_subida__{model}"
     ETROLLEY_DATA["truck_catalog"].setdefault(model, {})
     if ss_key in st.session_state:
-        ETROLLEY_DATA["truck_catalog"][model]["diesel_l_km_subida"] = float(st.session_state[ss_key])
+        ETROLLEY_DATA["truck_catalog"][model]["diesel_l_km_uphill"] = float(st.session_state[ss_key])
     diesel_l_km_subida = get_diesel_l_km_subida(model)
 
     # ---------- 3) Horizonte y años ----------
@@ -1074,7 +1074,7 @@ def et_ui_step2():
                 return m * exp
         return 10 * exp
 
-    # ---------- 4) (Cálculo operativo básico) ----------
+    # ---------- 4) (Cálculo operativo Basic) ----------
     trips_uphill_c1_y = cycles_c1_per_truck * n_trucks * subidas_por_ciclo
     trips_uphill_c2_y = cycles_c2_per_truck * n_trucks * subidas_por_ciclo
     km_uphill_c1_y    = dist_km * trips_uphill_c1_y
@@ -1162,16 +1162,16 @@ def et_ui_step2():
             text-align:center;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         ">
-            <h2 style="margin:0; font-weight:700; color:#000;">{valor}</h2>
+            <h2 style="margin:0; font-weight:700; color:#000;">{value}</h2>
             <p style="margin:0; color:#555; font-size:15px;">{subtitulo}</p>
             <p style="margin-top:5px; color:#008000; font-size:13px;">{delta}</p>
         </div>
     """
-    col1.markdown(kpi_style.format(valor=toneladas, subtitulo="Toneladas movidas (10 años)", delta=delta_ton), unsafe_allow_html=True)
-    col2.markdown(kpi_style.format(valor=emisiones, subtitulo="Emisiones evitadas (10 años)", delta=""), unsafe_allow_html=True)
-    col3.markdown(kpi_style.format(valor=ahorro, subtitulo="Ahorro operativo anual", delta=""), unsafe_allow_html=True)
+    col1.markdown(kpi_style.format(valor=toneladas, subtitulo="Tons Moved (10 years)", delta=delta_ton), unsafe_allow_html=True)
+    col2.markdown(kpi_style.format(valor=emisiones, subtitulo="Avoided Emissions (10 years)", delta=""), unsafe_allow_html=True)
+    col3.markdown(kpi_style.format(valor=ahorro, subtitulo="Annual Operating Savings", delta=""), unsafe_allow_html=True)
     
-    st.caption("• MTM = millones de toneladas-movidas · KtCO₂ = miles de toneladas de CO₂ · Ahorro: diésel vs (eléctrico + mantenimiento).")
+    st.caption("• MTM = millones de tons-movidas · KtCO₂ = miles de tons de CO₂ · Savings: diesel vs (electric + mantenimiento).")
 
     # ⚠️ AQUÍ YA NO HAY ANIMACIÓN DE CAMIONES ⚠️
 
@@ -1180,17 +1180,17 @@ def et_ui_step2():
 
     fig_tm = go.Figure()
     fig_tm.add_trace(go.Scatter(
-        x=years, y=cum_ton_c1, mode="lines+markers", name="C1 (diésel)",
+        x=years, y=cum_ton_c1, mode="lines+markers", name="C1 (diesel)",
         line=dict(width=3), marker=dict(size=6), fill="tozeroy", opacity=0.25,
-        hovertemplate="Año %{x}<br>%{y:.0f} MTM<extra></extra>",
+        hovertemplate="Year %{x}<br>%{y:.0f} MTM<extra></extra>",
     ))
     fig_tm.add_trace(go.Scatter(
         x=years, y=cum_ton_c2, mode="lines+markers", name="C2 (e-trolley)",
         line=dict(width=3), marker=dict(size=6), fill="tozeroy", opacity=0.25,
-        hovertemplate="Año %{x}<br>%{y:.0f} MTM<extra></extra>",
+        hovertemplate="Year %{x}<br>%{y:.0f} MTM<extra></extra>",
     ))
     fig_tm.update_yaxes(range=[0, ymax_ton], dtick=ymax_ton/7.0, title="MTM")
-    fig_tm.update_xaxes(title="Año")
+    fig_tm.update_xaxes(title="Year")
     fig_tm.update_layout(title="Toneladas acumuladas movidas(M TM)", margin=dict(l=10,r=10,t=60,b=40))
     fig_tm.add_annotation(x=years[-1], y=cum_ton_c1[-1], text=f"{cum_ton_c1[-1]:.0f} MTM",
                           showarrow=True, arrowhead=2, ax=30, ay=-20)
@@ -1198,8 +1198,8 @@ def et_ui_step2():
                           showarrow=True, arrowhead=2, ax=30, ay=-20)
 
     # ---------- 8) CO₂ acumulado evitado ----------
-    with st.expander("Ajustes de CO₂ (para la gráfica)"):
-        diesel_kg_per_l = st.number_input("Factor diésel (kg CO₂ / L)", 0.0, 5.0,
+    with st.expander("CO₂ Settings (for chart)"):
+        diesel_kg_per_l = st.number_input("Factor diesel (kg CO₂ / L)", 0.0, 5.0,
                                           float(st.session_state.get("et_diesel_kg_l", 2.68)), 0.01,
                                           key="et_diesel_kg_l")
         grid_kg_per_kwh = st.number_input("Factor red (kg CO₂ / kWh)", 0.0, 2.0,
@@ -1221,11 +1221,11 @@ def et_ui_step2():
     fig_co2.add_trace(go.Scatter(
         x=years, y=cum_co2_saved_kt, mode="lines+markers", name="C2 vs C1",
         line=dict(width=3), marker=dict(size=6), fill="tozeroy", opacity=0.25,
-        hovertemplate="Año %{x}<br>%{y:.1f} KtCO₂<extra></extra>",
+        hovertemplate="Year %{x}<br>%{y:.1f} KtCO₂<extra></extra>",
     ))
     fig_co2.update_yaxes(range=[0, ymax_co2], dtick=max(ymax_co2/7.0, 0.5), title="K tCO₂")
-    fig_co2.update_xaxes(title="Año")
-    fig_co2.update_layout(title="Ahorro acumulado de CO₂(K tCO₂)", margin=dict(l=10,r=10,t=60,b=40))
+    fig_co2.update_xaxes(title="Year")
+    fig_co2.update_layout(title="Savings acumulado de CO₂(K tCO₂)", margin=dict(l=10,r=10,t=60,b=40))
     fig_co2.add_annotation(x=years[-1], y=cum_co2_saved_kt[-1],
                            text=f"{cum_co2_saved_kt[-1]:.1f} KtCO₂",
                            showarrow=True, arrowhead=2, ax=30, ay=-20)
@@ -1234,9 +1234,9 @@ def et_ui_step2():
     g1.plotly_chart(fig_tm,  use_container_width=True, key="et_tons_y_only")
     g2.plotly_chart(fig_co2, use_container_width=True, key="et_co2_saved_only")
 
-    with st.expander("🔎 Diagnóstico (valores clave)"):
+    with st.expander("🔎 Diagnosis (key values)"):
         df_dbg = pd.DataFrame({
-            "Año": years,
+            "Year": years,
             "Ton C1 (acum MTM)": cum_ton_c1,
             "Ton C2 (acum MTM)": cum_ton_c2,
             "CO2 saved (acum Kt)": cum_co2_saved_kt,
@@ -1244,7 +1244,7 @@ def et_ui_step2():
         st.dataframe(df_dbg, use_container_width=True)
 
     st.markdown("---")
-    if st.button("⬅ Volver a parámetros de E-Trolley", key="et_back_step1_y", use_container_width=True):
+    if st.button("⬅ Back to E-Trolley parameters", key="et_back_step1_y", use_container_width=True):
         st.session_state.et_step = 1
         st.rerun()
 
@@ -1252,7 +1252,7 @@ def et_ui_step2():
 # ===================== APC (Advanced Process Control) =====================
 
 def apc_step1():
-    st.subheader("APC — Paso 1: Datos de proceso y económicos")
+    st.subheader("APC — Step 1: Process and Economic Data")
 
     # Valores por defecto tomados del Excel
     throughput = st.number_input(
@@ -1264,7 +1264,7 @@ def apc_step1():
     )
 
     availability_pct = st.slider(
-        "Disponibilidad operativa (%):",
+        "Operational availability (%):",
         min_value=50, max_value=100,
         value=st.session_state.get("apc_availability_pct", 90),
         format="%d%%",
@@ -1272,7 +1272,7 @@ def apc_step1():
     )
 
     power_mw = st.number_input(
-        "Potencia del sistema (MW):",
+        "System power (MW):",
         min_value=0.1,
         value=st.session_state.get("apc_power_mw", 28.0),
         step=0.1,
@@ -1280,7 +1280,7 @@ def apc_step1():
     )
 
     energy_cost = st.number_input(
-        "Costo de energía (USD/kWh):",
+        "Energy costs (USD/kWh):",
         min_value=0.001,
         value=st.session_state.get("apc_energy_cost", 0.06),
         step=0.001,
@@ -1296,13 +1296,13 @@ def apc_step1():
         key="apc_net_worth_in"
     )
 
-    st.markdown("### 📗 Datos económicos adicionales")
+    st.markdown("### 📗 Additional Economic Data")
 
     # ============================
     # Costo mensual de reactivos
     # ============================
     reagent_cost_m_musd = st.number_input(
-        "Costo mensual de reactivos (MUSD/mes):",
+        "Monthly reagent cost (MUSD/month):",
         min_value=0.0,
         value=st.session_state.get("apc_reagent_cost_m_musd", 0.12),  # 0.12 MUSD = 120,000 USD
         step=0.01,
@@ -1320,7 +1320,7 @@ def apc_step1():
     # Valor económico del 1% de recuperación
     # ============================
     recovery_value_musd = st.number_input(
-        "Valor económico del 1% de recuperación (MUSD/año):",
+        "Economic value of 1% recovery (MUSD/year):",
         min_value=0.0,
         value=st.session_state.get("apc_recovery_value_musd", 10.0),  # 10 MUSD = 10M USD
         step=0.5,
@@ -1348,14 +1348,14 @@ def apc_step1():
 
     # Volver a Paso 2 (desafíos) / cerrar APC
     with col_a:
-        if st.button("❌ Cerrar APC", key="apc_close_1", use_container_width=True):
+        if st.button("❌ Close APC", key="apc_close_1", use_container_width=True):
             st.session_state.apc_mode = False
             st.session_state.step = 2
             st.rerun()
 
     # Ir a Paso 4 (Beneficios APC)
     with col_b:
-        if st.button("Calcular beneficios APC ▶", key="apc_go_step2", type="primary", use_container_width=True):
+        if st.button("Calculate APC benefits ▶", key="apc_go_step2", type="primary", use_container_width=True):
             st.session_state.apc_mode = True   # por seguridad
             st.session_state.step = 4
             st.rerun()
@@ -1369,12 +1369,12 @@ def apc_step2():
 
     # ========= 1) Recuperar parámetros necesarios =========
     if "apc_throughput" not in st.session_state:
-        st.warning("Primero completa los datos de proceso y económicos (Paso 1 de APC).")
+        st.warning("First complete the process and economic data (APC Step 1).")
         st.session_state.apc_step = 1
         return
 
     # Datos generales del Paso 1 global
-    tipo_mina     = st.session_state.get("tipo_mina", "—")
+    tipo_mina     = st.session_state.get("tipo_mine", "—")
     tipo_material = st.session_state.get("tipo_material", "—")
     produccion    = st.session_state.get("produccion", "—")
 
@@ -1406,16 +1406,16 @@ def apc_step2():
         return colores[index] if index < len(colores) else "#f7f8f9"
 
     etiquetas_prioridad = [
-        "🔴 Prioridad Alta",
-        "🟠 Prioridad Media",
-        "🟡 Prioridad Baja"
+        "🔴 High Priority",
+        "🟠 Medium Priority",
+        "🟡 Low Priority"
     ]
 
     col_res1, col_res2 = st.columns([1, 1])
 
     # ----- Columna izquierda: Resumen de información -----
     with col_res1:
-        st.subheader("Resumen de información")
+        st.subheader("Information Summary")
 
         st.markdown(
             f"<div style='{card_line_style}'>• Tipo de mina: "
@@ -1449,7 +1449,7 @@ def apc_step2():
             unsafe_allow_html=True
         )
         st.markdown(
-            f"<div style='{card_line_style}'>• Costo de energía: "
+            f"<div style='{card_line_style}'>• Energy costs: "
             f"<b>{c_kwh:.3f} USD/kWh</b></div>",
             unsafe_allow_html=True
         )
@@ -1471,7 +1471,7 @@ def apc_step2():
 
     # ----- Columna derecha: Desafíos seleccionados -----
     with col_res2:
-        st.subheader("Desafíos seleccionados")
+        st.subheader("Selected Challenges")
 
         prioridades = st.session_state.get("prioridades", [])
         for idx, d in enumerate(prioridades[:3]):
@@ -1521,7 +1521,7 @@ def apc_step2():
 
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("### Indicadores de operación")
+        st.markdown("### Operating Indicators")
         st.markdown(
             f"""
             <div style="{card_style}">
@@ -1542,7 +1542,7 @@ def apc_step2():
         )
 
     with col2:
-        st.markdown("### Indicadores económicos APC")
+        st.markdown("### APC Economic Indicators")
         st.markdown(
             f"""
             <div style="{card_style}">
@@ -1575,12 +1575,12 @@ def apc_step2():
     col_a, col_b = st.columns(2)
 
     with col_a:
-        if st.button("◀ Volver a editar datos APC", key="apc_back_step1", use_container_width=True):
+        if st.button("◀ Back a edit data APC", key="apc_back_step1", use_container_width=True):
             st.session_state.step = 3
             st.rerun()
 
     with col_b:
-        if st.button("❌ Cerrar APC", key="apc_close_2", use_container_width=True):
+        if st.button("❌ Close APC", key="apc_close_2", use_container_width=True):
             st.session_state.apc_mode = False
             st.session_state.step = 2
             st.rerun()
@@ -1603,22 +1603,22 @@ if "prioridades" not in st.session_state:
 
 # Paso 1 de 4
 if st.session_state.step == 1:
-    st.header("Paso 1 de 4: Información General")
+    st.header("Step 1 of 4: General Information")
 
-    st.session_state.tipo_mina = st.selectbox("Seleccione el tipo de mina:", ["Subterránea", "Tajo abierto"])
-    st.session_state.tipo_material = st.selectbox("Seleccione el tipo de material a extraer:", ["Polimetálico", "Fosfatos", "Cobre", "Hierro"])
-    st.session_state.produccion = st.selectbox("Tonelada diaria procesada:", [
-        "Menor a 5,000 ton", 
-        "5,000 a 60,000 ton", 
-        "Mayor a 60,000 ton"
+    st.session_state.tipo_mina = st.selectbox("Select the type of mine:", ["Underground", "Open pit"])
+    st.session_state.tipo_material = st.selectbox("Select the extracted material:", ["Polymetallic", "Phosphate	", "Copper", "Iron"])
+    st.session_state.produccion = st.selectbox("Daily processed tonnage:", [
+        "Less than 5,000 tons/day", 
+        "5,000 a 60,000 tons/day", 
+        "More than a 60,000 tons/day"
     ])
 
     #col1, col2 = st.columns([1, 1])
     #with col1:
-     #   st.button("Siguiente", on_click=next_step)
+     #   st.button("Next", on_click=next_step)
     col1, col2 = st.columns([1, 1])
     with col1:
-        st.button("Siguiente ▶", on_click=next_step, key="next1", type="primary")
+        st.button("Next ▶", on_click=next_step, key="next1", type="primary")
     with col2:
         st.empty()
 
@@ -1631,8 +1631,8 @@ if st.session_state.step == 1:
 
 # Paso 2 de 4
 if st.session_state.step == 2:
-    st.header("Paso 2 de 4: Desafíos Prioritarios")
-    st.caption("(Selecciona hasta tres desafíos)")
+    st.header("Step 2 of 4: Priority Challenges")
+    st.caption("(Select up to three challenges)")
 
     if "mostrar_warning" not in st.session_state:
         st.session_state.mostrar_warning = False
@@ -1641,17 +1641,17 @@ if st.session_state.step == 2:
     if st.session_state.mostrar_warning:
         colw1, colw2 = st.columns([0.01, 0.9])  # 10% - 90% ancho pantalla
         with colw2:
-            st.warning("Debes seleccionar al menos un desafío.")
+            st.warning("Select at least one challenge")
         st.session_state.mostrar_warning = False  # Ocultar luego del render
 
     desafios = [
-        "Aumentar la recuperación",
-        "Aumentar los índices de seguridad",
-        "Aumentar rendimiento de equipos",
-        "Centralizar la visibilidad de la operación",
-        "Reducir consumo energético",
-        "Reducir consumo de combustible fósil",
-        "Reducir la huella hídrica"       
+        "Increase metallurgical recovery ",
+        "Improve safety performance ",
+        "Enhance equipment productivity ",
+        "Centralize operational visibility ",
+        "Reduce energy consumption ",
+        "Reduce fossil fuel use",
+        "Reduce water footprint"       
     ]
 
     for i, desafio in enumerate(desafios):
@@ -1666,7 +1666,7 @@ if st.session_state.step == 2:
         st.markdown("<hr>", unsafe_allow_html=True)
 
     for idx, item in enumerate(st.session_state.prioridades):
-        color = ["🔴 Prioridad Alta", "🟠 Prioridad Media", "🟡 Prioridad Baja"]
+        color = ["🔴 High Priority", "🟠 Medium Priority", "🟡 Low Priority"]
         if idx < 3:
             st.markdown(
                 f"<span style='margin-left:10px;'>{item}: <b style='color:red'>{color[idx]}</b></span>",
@@ -1679,10 +1679,10 @@ if st.session_state.step == 2:
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        st.button("◀ Anterior", on_click=prev_step, key="prev2", type="secondary")
+        st.button("◀ Previous", on_click=prev_step, key="prev2", type="secondary")
 
     with col2:
-        if st.button("Siguiente ▶", key="next2", type="primary"):
+        if st.button("Next ▶", key="next2", type="primary"):
             if len(st.session_state.prioridades) == 0:
                 st.session_state.mostrar_warning = True
                 st.rerun()
@@ -1695,18 +1695,18 @@ if st.session_state.step == 2:
 
 
 # ---------------- Config (reemplaza TRANSICION_A_CASO) ----------------
-NIVELES_ORDEN = ["Esencial", "Básico", "Operación Efectiva", "Smart"]
+NIVELES_ORDEN = ["Essential", "Basic", "Effective Operation", "Smart"]
 CASO_CONSECUTIVO = {
-    ("Esencial", "Básico"): 1,
-    ("Básico", "Operación Efectiva"): 2,
-    ("Operación Efectiva", "Smart"): 3,
+    ("Essential", "Basic"): 1,
+    ("Basic", "Effective Operation"): 2,
+    ("Effective Operation", "Smart"): 3,
 }
 
 CASO_A_TRANSICION = {
-    1: ("Esencial", "Básico"),
-    2: ("Básico", "Operación Efectiva"),
-    3: ("Operación Efectiva", "Smart"),
-    4: ("Esencial", "Smart"),  # por si luego lo usas
+    1: ("Essential", "Basic"),
+    2: ("Basic", "Effective Operation"),
+    3: ("Effective Operation", "Smart"),
+    4: ("Essential", "Smart"),  # por si luego lo usas
 }
 
 def ruta_secuencial(n_act: str, n_obj: str):
@@ -1731,7 +1731,7 @@ if st.session_state.step == 3:
     def _norm(s: str) -> str:
         return unicodedata.normalize("NFKD", (s or "")).encode("ascii","ignore").decode().strip().lower()
 
-    prioridades = st.session_state.get("prioridades", [])
+    prioridades = st.session_state.get("Priorities", [])
 
     # Por defecto, NO estamos en modo APC
     st.session_state.apc_mode = False
@@ -1739,14 +1739,14 @@ if st.session_state.step == 3:
     # ---------- 1) COMBO APC (P1,P2,P3) ----------
     apc_auto = (
         len(prioridades) >= 3 and
-        _norm(prioridades[0]) == _norm("Aumentar la recuperación") and
-        _norm(prioridades[1]) == _norm("Aumentar rendimiento de equipos") and
-        _norm(prioridades[2]) == _norm("Reducir consumo energético")
+        _norm(prioridades[0]) == _norm("Increase metallurgical recovery") and
+        _norm(prioridades[1]) == _norm("Enhance equipment productivity ") and
+        _norm(prioridades[2]) == _norm("Reduce energy consumption")
     )
 
     if apc_auto:
         st.session_state.apc_mode = True
-        st.header("Paso 3 de 4: Advanced Process Control (APC) — Datos de proceso y económicos")
+        st.header("Step 3 of 4: Advanced Process Control (APC) — Process and Economic Data")
         apc_step1()          # 👈 mostramos directamente el Paso 1 de APC
         st.stop()            # 👈 no seguimos a EMS / VoD / Trolley
 
@@ -1755,16 +1755,16 @@ if st.session_state.step == 3:
     priority2_exact = prioridades[1] if len(prioridades) >= 2 else None
 
     # 🔌 Hook E-Trolley: mina a tajo abierto + prioridad en combustible fósil
-    if _norm(priority2_exact) == _norm("Reducir consumo de combustible fósil") and \
-       st.session_state.get("tipo_mina", "") == "Tajo abierto":
+    if _norm(priority2_exact) == _norm("Reduce fossil fuel use") and \
+       st.session_state.get("tipo_mine", "") == "Open pit":
 
         # Inicializa sub-pasos de E-Trolley si es la primera vez
         if "et_step" not in st.session_state:
             st.session_state.et_step = 1
 
         # 🔌 Hook E-Trolley: mina a tajo abierto + prioridad en combustible fósil
-    if _norm(priority2_exact) == _norm("Reducir consumo de combustible fósil") and \
-       st.session_state.get("tipo_mina", "") == "Tajo abierto":
+    if _norm(priority2_exact) == _norm("Reduce fossil fuel use") and \
+       st.session_state.get("tipo_mine", "") == "Open pit":
 
         # Inicializa sub-pasos de E-Trolley si es la primera vez
         if "et_step" not in st.session_state:
@@ -1772,10 +1772,10 @@ if st.session_state.step == 3:
 
         # 👉 Título distinto según sub-paso
         if st.session_state.et_step == 1:
-            st.header("Paso 3 de 4: E-Trolley — Parámetros del caso")
+            st.header("Step 3 of 4: E-Trolley — Case Parameters")
             et_ui_step1()
         else:
-            st.header("Paso 4 de 4: E-Trolley — Resultados del análisis")
+            st.header("Step 4 of 4: E-Trolley — Analysis Results")
             et_ui_step2()
 
         st.stop()
@@ -1785,8 +1785,8 @@ if st.session_state.step == 3:
 
     # Hook EMS si P1=centralizar visibilidad y P2=reducción energética
     if (priority1_exact and priority2_exact and
-        _norm(priority1_exact) == _norm("Centralizar la visibilidad de la operación") and
-        _norm(priority2_exact) == _norm("Reducir consumo energético")):
+        _norm(priority1_exact) == _norm("Centralize operational visibility") and
+        _norm(priority2_exact) == _norm("Reduce energy consumption")):
         st.session_state.ems_active = True
         ems_ui_step3()
         st.stop()
@@ -1794,29 +1794,29 @@ if st.session_state.step == 3:
     # Si no estamos en EMS ni E-Trolley, forzamos VoD (como ya tenías)
     st.session_state.ems_active = False
     st.session_state.pop("ems_params", None)
-    st.header("Paso 3 de 4: Nivel actual y objetivo")
+    st.header("Step 3 of 4: Current and Target Automation Level")
     ...
 
 
 
     col1, col2 = st.columns(2)
     with col1:
-        n_act = st.selectbox("Nivel actual", NIVELES_ORDEN, index=0, key="nivel_actual")
+        n_act = st.selectbox("Current Level", NIVELES_ORDEN, index=0, key="current_level")
     with col2:
-        n_obj = st.selectbox("Nivel objetivo", NIVELES_ORDEN, index=1, key="nivel_objetivo")
+        n_obj = st.selectbox("Target Level", NIVELES_ORDEN, index=1, key="target_level")
 
     ruta = ruta_secuencial(n_act, n_obj)
     siguiente_habilitado = True
 
     # Apaga Caso 4 si ya no aplica
-    if st.session_state.get("usar_caso_4") and not (n_act == "Esencial" and n_obj == "Smart"):
+    if st.session_state.get("use_case_4") and not (n_act == "Essential" and n_obj == "Smart"):
         st.session_state.usar_caso_4 = False
 
     if ruta is None:
-        st.warning("No se permite una transición descendente. Selecciona un nivel objetivo igual o superior.")
+        st.warning("Downward transitions are not allowed. Please select an equal or higher target level.")
         siguiente_habilitado = False
     elif len(ruta) == 0:
-        st.info("El nivel actual y el objetivo son iguales. Selecciona una transición distinta.")
+        st.info("The current level and the target level are the same. Please select a different transition.")
         siguiente_habilitado = False
     else:
         casos = casos_desde_ruta(ruta)
@@ -1824,29 +1824,29 @@ if st.session_state.step == 3:
         st.session_state.casos = casos
         st.session_state.caso = casos[0]  # compat
 
-        usar_c4 = (n_act == "Esencial" and n_obj == "Smart" and
-                   st.toggle("Usar implementación conjunta (Caso 4)", key="usar_caso_4",
-                             value=st.session_state.get("usar_caso_4", False)))
+        usar_c4 = (n_act == "Essential" and n_obj == "Smart" and
+                   st.toggle("Usar implementation combined (Caso 4)", key="use_case_4",
+                             value=st.session_state.get("use_case_4", False)))
         if usar_c4:
-            st.info("Has seleccionado **Caso 4** (CAPEX específico; no suma lineal de 1+2+3).")
+            st.info("You have selected **Case 4** (specific CAPEX; not a linear sum of 1+2+3).")
             st.session_state.casos = [4]
             st.session_state.caso = 4
         else:
-            st.success(f"Transición detectada: {' → '.join(ruta)}")
-            st.caption(f"Casos a ejecutar en orden: {', '.join(map(str, casos))}. (1→2→3).")
+            st.success(f"Transition detected: {' → '.join(ruta)}")
+            st.caption(f"Cases to be executed in order: {', '.join(map(str, casos))}. (1→2→3).")
 
         st.info("""
-        **Esencial** → Operación básica y segura, mínima automatización.  
-        **Básico** → Controles simples (PLC), mayor estabilidad.  
-        **Operación Efectiva** → Integración en DCS, eficiencia energética y operativa.  
-        **Smart** → Nivel avanzado con IA y analítica para optimización total.
+        **Essential** → Basic and safe operation with minimal automation.  
+        **Basic** → Simple control systems (PLC) with improved operational stability.  
+        **Effective Operation** → Integration with DCS, enhanced energy and operational efficiency.  
+        **Smart** → Advanced level with AI and analytics for full operational optimization.
         """)
 
     col1, col2 = st.columns([1, 1])
     with col1:
-        st.button("◀ Anterior", on_click=prev_step, key="prev3", type="secondary")
+        st.button("◀ Previous", on_click=prev_step, key="prev3", type="secondary")
     with col2:
-        clicked = st.button("Siguiente ▶", key="next3", type="primary", disabled=not siguiente_habilitado)
+        clicked = st.button("Next ▶", key="next3", type="primary", disabled=not siguiente_habilitado)
         if clicked:
             next_step()
             st.rerun()
@@ -1859,7 +1859,7 @@ if st.session_state.step == 4:
 
     # ---------- 1) Si estamos en modo APC, mostrar Beneficios APC ----------
     if st.session_state.get("apc_mode"):
-        st.header("Paso 4 de 4: Advanced Process Control (APC) — Beneficios estimados")
+        st.header("Step 4 of 4: Advanced Process Control (APC) — Estimated Benefits")
         apc_step2()
         st.stop()
 
@@ -1869,7 +1869,7 @@ if st.session_state.step == 4:
         st.stop()
 
 
-    st.header("Paso 4 de 4: Parámetros técnicos")
+    st.header("Step 4 of 4: Technical Parameters")
 
     if "mostrar_warning_tec" not in st.session_state:
         st.session_state.mostrar_warning_tec = False
@@ -1878,63 +1878,63 @@ if st.session_state.step == 4:
     if st.session_state.mostrar_warning_tec:
         colw1, colw2 = st.columns([0.01, 0.9])
         with colw2:
-            st.warning("Completa los campos técnicos iniciales.")
+            st.warning("Complete the initial technical fields.")
         st.session_state.mostrar_warning_tec = False  # Se limpia tras mostrarla
 
     # --- Parámetros técnicos siempre visibles ---
-    ventiladores_prim = st.number_input("Cantidad de ventiladores primarios:", min_value=0, max_value=20, step=1,
-                                        value=st.session_state.get("ventiladores_prim", 0))
-    potencia_prim = st.number_input("Potencia promedio por ventilador primario(kW):",
-                                    value=st.session_state.get("potencia_prim", 75.0))
-    ventiladores_comp = st.number_input("Cantidad de ventiladores complementarios:", min_value=0, max_value=20, step=1,
-                                        value=st.session_state.get("ventiladores_comp", 0))
-    potencia_comp = st.number_input("Potencia promedio por ventilador complementario(kW):",
-                                    value=st.session_state.get("potencia_comp", 1.5))
+    ventiladores_prim = st.number_input("Number of primary ventilators", min_value=0, max_value=20, step=1,
+                                        value=st.session_state.get("ventilators_prim", 0))
+    potencia_prim = st.number_input("Average power per primary ventilator (kW)",
+                                    value=st.session_state.get("power_prim", 75.0))
+    ventiladores_comp = st.number_input("Number of auxiliary ventilators", min_value=0, max_value=20, step=1,
+                                        value=st.session_state.get("ventilators_comp", 0))
+    potencia_comp = st.number_input("Average power per auxiliary ventilator (kW)",
+                                    value=st.session_state.get("power_comp", 1.5))
 
-    tarifa = st.selectbox("Costo de energía (USD/kWh):", [
-        "Mayor a 0.1",
-        "Entre 0.076 a 0.1",
-        "Entre 0.05 a 0.075",
-        "Menor a 0.05"
-    ], index=["Mayor a 0.1","Entre 0.076 a 0.1","Entre 0.05 a 0.075","Menor a 0.05"].index(
-        st.session_state.get("tarifa","Mayor a 0.1"))
+    tarifa = st.selectbox("Energy costs (USD/kWh):", [
+        "More than 0.1",
+        "Between 0.076 a 0.1",
+        "Between 0.05 a 0.075",
+        "Less than 0.05"
+    ], index=["More than 0.1","Between 0.076 a 0.1","Between 0.05 a 0.075","Less than 0.05"].index(
+        st.session_state.get("Rate","More than 0.1"))
     )
 
     # --- Parámetros según caso ---
     st.markdown("---")
-    st.subheader("Parámetros según caso")
+    st.subheader("Parameters by case")
 
     _caso = st.session_state.get("caso", None)
 
     # Defaults
-    _red_c1 = st.session_state.get("reduccion_c1_pct", 0.08)      # 8 %
-    _esquema = st.session_state.get("esquema_id", 2)              # 1..3
+    _red_c1 = st.session_state.get("case1_reduction_pct", 0.08)      # 8 %
+    _esquema = st.session_state.get("scheme_id", 2)              # 1..3
     _red_baja = st.session_state.get("reduccion_baja_pct", 0.25)  # 25 %
     _q_rel = st.session_state.get("q_rel_smart", 0.85)            # 85 %
 
     if _caso == 1:
-        st.markdown("**Caso 1 • Reducción directa de velocidad**")
+        st.markdown("**Case 1: Direct Speed Reduction**")
         _red_c1 = st.slider(
-            "Reducción de velocidad inicial (%)",
+            "Initial speed reduction (%)",
             min_value=1.0, max_value=10.0, value=_red_c1*100, step=0.5
         ) / 100.0
 
     elif _caso == 2:
         # ---- Título y explicación dinámica ----
-        st.markdown("**Caso 2 • Configurar: Horas en operación del ventilador**")
+        st.markdown("**Case 2: Ventilators Operating Hours**")
 
         CASO_A_TRANSICION = {
-            1: ("Esencial", "Básico"),
-            2: ("Básico", "Operación Efectiva"),
-            3: ("Operación Efectiva", "Smart"),
-            4: ("Esencial", "Smart"),
+            1: ("Essential", "Basic"),
+            2: ("Basic", "Effective Operation"),
+            3: ("Effective Operation", "Smart"),
+            4: ("Essential", "Smart"),
         }
-        nivel_desde, nivel_hasta = CASO_A_TRANSICION.get(2, ("Esencial", "Básico"))
+        nivel_desde, nivel_hasta = CASO_A_TRANSICION.get(2, ("Essential", "Basic"))
 
         st.caption(
-            f"A partir del nivel de automatización **{nivel_desde} → {nivel_hasta}** "
-            f"se usa una reducción de **{_red_c1*100:.0f}%** en la operación.  \n"
-            "Selecciona cuál opción representa las **horas en operación del ventilador**."
+            f"Based on the level of automation **{nivel_desde} → {nivel_hasta}** "
+            f"a reduction of **{_red_c1*100:.0f}%** in the operation.  \n"
+            "Select the option that best represents the fan operating hours."
         )
 
         # ====== estilos de las tarjetas / barras ======
@@ -2021,13 +2021,13 @@ if st.session_state.step == 4:
                     ),
                     unsafe_allow_html=True
                 )
-                if st.button(f"Seleccionar esquema {idx}", key=f"pick_scheme_{idx}", use_container_width=True):
+                if st.button(f"Select type {idx}", key=f"pick_scheme_{idx}", use_container_width=True):
                     _esquema = idx
 
         st.write(
-            f"Esquema seleccionado: **{_esquema}**  •  "
-            f"Alta: **{int(ESQUEMAS[_esquema]['alta']*100)}%**  |  "
-            f"Baja: **{int(ESQUEMAS[_esquema]['baja']*100)}%**"
+            f"Selected type: **{_esquema}**  •  "
+            f"High: **{int(ESQUEMAS[_esquema]['High']*100)}%**  |  "
+            f"Low: **{int(ESQUEMAS[_esquema]['Low']*100)}%**"
         )
 
         # ====== persistencia en sesión ======
@@ -2036,18 +2036,18 @@ if st.session_state.step == 4:
    
 
     elif _caso == 3:
-        st.markdown("**Caso 3 • Sensorización / Smart**")
+        st.markdown("**Case 3: Sensorization / Smart**")
 
         # --- estado persistente ---
         base = float(st.session_state.get("c3_base", 0.85))   # valor "Base" por defecto
         delta = float(st.session_state.get("c3_delta", 0.05)) # separación para Conservador/Optimista
         use_custom = bool(st.session_state.get("c3_use_custom", False))
 
-        with st.expander("Opciones de preset (avanzado)", expanded=False):
-            use_custom = st.checkbox("Definir mi valor base", value=use_custom)
+        with st.expander("Preset options (avanzado)", expanded=False):
+            use_custom = st.checkbox("Define my base value", value=use_custom)
             if use_custom:
-                base = st.number_input("Valor base (Qᵣₑₗ)", min_value=0.60, max_value=1.00, value=base, step=0.01, format="%.2f")
-                delta = st.number_input("Separación δ (±)", min_value=0.00, max_value=0.20, value=delta, step=0.01, format="%.2f")
+                base = st.number_input("Base value (Qᵣₑₗ)", min_value=0.60, max_value=1.00, value=base, step=0.01, format="%.2f")
+                delta = st.number_input("Delta separation (±)", min_value=0.00, max_value=0.20, value=delta, step=0.01, format="%.2f")
             st.session_state.c3_use_custom = use_custom
 
         # clamp helper
@@ -2059,7 +2059,7 @@ if st.session_state.step == 4:
         q_opt  = clamp(base - delta)
 
         # --- mostrar como etiquetas (no seleccionables) ---
-        st.caption("Valores de referencia (no seleccionables aquí):")
+        st.caption("Reference values (not selectable here):")
         colA, colB, colC = st.columns(3)
         pill_css = """
             <div style="
@@ -2071,13 +2071,13 @@ if st.session_state.step == 4:
             </div>
         """
         with colA:
-            st.markdown(pill_css.format(title="Conservador", val=q_con), unsafe_allow_html=True)
+            st.markdown(pill_css.format(title="Conservative", val=q_con), unsafe_allow_html=True)
         with colB:
             st.markdown(pill_css.format(title="Base",        val=q_base), unsafe_allow_html=True)
         with colC:
-            st.markdown(pill_css.format(title="Optimista",   val=q_opt),  unsafe_allow_html=True)
+            st.markdown(pill_css.format(title="Optimistic",   val=q_opt),  unsafe_allow_html=True)
 
-        st.caption("El caudal promedio se ajusta automáticamente según la demanda medida por sensores. Una menor fracción de caudal implica mayor ahorro (potencia ~ Q³).")
+        st.caption("El airflow promedio se ajusta automáticamente según la demanda medida por sensores. Una menor fracción de airflow implica mayor savings (power ~ Q³).")
 
         # --- persistir para usar en Paso 5 (gráficas por escenario) ---
         st.session_state.c3_base  = base
@@ -2092,11 +2092,11 @@ if st.session_state.step == 4:
 
 
     elif _caso == 4:
-        with st.expander("Caso 4 • Implementación conjunta (C1+C2+C3)", expanded=False):
-            _red_c1 = st.slider("C1: Reducción velocidad (%)", 0.0, 20.0, _red_c1*100, 1.0)/100.0
+        with st.expander("Case 4 • Combined Implementation (C1+C2+C3)", expanded=False):
+            _red_c1 = st.slider("C1: Speed Reduction (%)", 0.0, 20.0, _red_c1*100, 1.0)/100.0
             _esquema = st.radio("C2: Esquema horario", [1,2,3], index=[1,2,3].index(_esquema), horizontal=True)
-            _red_baja = st.slider("C2: Reducción en baja (%)", 0.0, 40.0, _red_baja*100, 1.0)/100.0
-            _q_rel = st.slider("C3: Caudal relativo Smart (Qᵣₑₗ)", 0.60, 1.00, _q_rel, 0.01)
+            _red_baja = st.slider("C2: Low-State Reduction (%)", 0.0, 40.0, _red_baja*100, 1.0)/100.0
+            _q_rel = st.slider("C3: Smart Relative Flow (Qᵣₑₗ)", 0.60, 1.00, _q_rel, 0.01)
 
     # Guardar en session_state
     st.session_state.reduccion_c1_pct = _red_c1
@@ -2107,9 +2107,9 @@ if st.session_state.step == 4:
     # ---------------- Botones ----------------
     col1, col2 = st.columns([1, 1])
     with col1:
-        st.button("◀ Anterior", on_click=prev_step, key="prev4", type="secondary")
+        st.button("◀ Previous", on_click=prev_step, key="prev4", type="secondary")
     with col2:
-        if st.button("Siguiente ▶", key="next4", type="primary"):
+        if st.button("Next ▶", key="next4", type="primary"):
             if ventiladores_prim < 1 or potencia_prim <= 0:
                 st.session_state.mostrar_warning_tec = True
                 st.rerun()
@@ -2130,7 +2130,7 @@ if st.session_state.step == 4:
 
 # ================== Paso 5: Resultado de análisis ==================
 if st.session_state.step == 5:
-    st.header("Resultado del análisis :")
+    st.header("Analysis Results")
     import plotly.graph_objects as go
 
     def get_priority_color(index):
@@ -2150,20 +2150,20 @@ if st.session_state.step == 5:
 
     # ================== COLUMNA IZQUIERDA ==================
     with col1:
-        st.subheader("Resumen de información")
+        st.subheader("Information Summary")
 
         st.markdown(
-            f"<div style='{card_line_style}'>• Tipo de mina: "
+            f"<div style='{card_line_style}'>• Type of mine: "
             f"<b>{st.session_state.tipo_mina}</b></div>",
             unsafe_allow_html=True
         )
         st.markdown(
-            f"<div style='{card_line_style}'>• Material extraído: "
+            f"<div style='{card_line_style}'>• Extracted material: "
             f"<b>{st.session_state.tipo_material}</b></div>",
             unsafe_allow_html=True
         )
         st.markdown(
-            f"<div style='{card_line_style}'>• Producción: "
+            f"<div style='{card_line_style}'>• Production: "
             f"<b>{st.session_state.produccion}</b></div>",
             unsafe_allow_html=True
         )
@@ -2172,110 +2172,110 @@ if st.session_state.step == 5:
         et_params = st.session_state.get("et_params")
         if et_params:
             st.markdown("---")
-            st.subheader("Parámetros E-Trolley")
+            st.subheader("E-Trolley Parameters")
 
             st.markdown(
-                f"<div style='{card_line_style}'>• Distancia del tramo: "
+                f"<div style='{card_line_style}'>• Distance of the section: "
                 f"<b>{et_params.get('dist_km', 0):.2f} km</b></div>",
                 unsafe_allow_html=True
             )
             st.markdown(
-                f"<div style='{card_line_style}'>• Pendiente promedio: "
+                f"<div style='{card_line_style}'>• Average outstanding: "
                 f"<b>{et_params.get('pendiente', 0):.1f} %</b></div>",
                 unsafe_allow_html=True
             )
             st.markdown(
-                f"<div style='{card_line_style}'>• Cantidad de camiones: "
+                f"<div style='{card_line_style}'>• Number of trucks: "
                 f"<b>{int(et_params.get('n_trucks', 0))}</b></div>",
                 unsafe_allow_html=True
             )
             st.markdown(
-                f"<div style='{card_line_style}'>• Modelo seleccionado: "
+                f"<div style='{card_line_style}'>• Selected model: "
                 f"<b>{et_params.get('model', '-')}</b></div>",
                 unsafe_allow_html=True
             )
             st.markdown(
-                f"<div style='{card_line_style}'>• Tipo de inversión: "
+                f"<div style='{card_line_style}'>• Type of investment: "
                 f"<b>{et_params.get('inv_type', '-')}</b></div>",
                 unsafe_allow_html=True
             )
             st.markdown(
-                f"<div style='{card_line_style}'>• Contingencia: "
+                f"<div style='{card_line_style}'>• Contingency: "
                 f"<b>{et_params.get('conting', 0):.1f} %</b></div>",
                 unsafe_allow_html=True
             )
             st.markdown(
-                f"<div style='{card_line_style}'>• Costo de energía: "
+                f"<div style='{card_line_style}'>• Energy costs: "
                 f"<b>{et_params.get('energy', 0):.3f} USD/kWh</b></div>",
                 unsafe_allow_html=True
             )
             st.markdown(
-                f"<div style='{card_line_style}'>• Mantenimiento trolley: "
+                f"<div style='{card_line_style}'>• Trolley maintenance: "
                 f"<b>{et_params.get('maint_y', 0)/1000:.1f} kUSD/año</b></div>",
                 unsafe_allow_html=True
             )
 
         # ---------- PARÁMETROS VENTILACIÓN / VoD ----------
         st.markdown("---")
-        st.subheader("Parámetros Ventilación / VoD")
+        st.subheader("Ventilation / VoD Parameters")
 
-        n_act = st.session_state.get("nivel_actual")
-        n_obj = st.session_state.get("nivel_objetivo")
+        n_act = st.session_state.get("current_level")
+        n_obj = st.session_state.get("target_level")
         caso  = st.session_state.get("caso")
 
         if caso is not None:
             st.markdown(
-                f"<div style='{card_line_style}'>• Caso detectado: "
+                f"<div style='{card_line_style}'>• Case detected: "
                 f"<b>{caso}</b></div>",
                 unsafe_allow_html=True
             )
         if n_act:
             st.markdown(
-                f"<div style='{card_line_style}'>• Nivel actual: "
+                f"<div style='{card_line_style}'>• Current level: "
                 f"<b>{n_act}</b></div>",
                 unsafe_allow_html=True
             )
         if n_obj:
             st.markdown(
-                f"<div style='{card_line_style}'>• Nivel objetivo: "
+                f"<div style='{card_line_style}'>• Target level: "
                 f"<b>{n_obj}</b></div>",
                 unsafe_allow_html=True
             )
 
         st.markdown(
-            f"<div style='{card_line_style}'>• Ventiladores primarios: "
+            f"<div style='{card_line_style}'>• Primary fans: "
             f"<b>{st.session_state.ventiladores_prim}</b></div>",
             unsafe_allow_html=True
         )
         st.markdown(
-            f"<div style='{card_line_style}'>• Potencia promedio (primarios): "
+            f"<div style='{card_line_style}'>• Average power (primary): "
             f"<b>{st.session_state.potencia_prim} kW</b></div>",
             unsafe_allow_html=True
         )
         st.markdown(
-            f"<div style='{card_line_style}'>• Ventiladores complementarios: "
+            f"<div style='{card_line_style}'>• Additional fans: "
             f"<b>{st.session_state.ventiladores_comp}</b></div>",
             unsafe_allow_html=True
         )
         st.markdown(
-            f"<div style='{card_line_style}'>• Potencia promedio (complementarios): "
+            f"<div style='{card_line_style}'>• Average power (auxiliary): "
             f"<b>{st.session_state.potencia_comp} kW</b></div>",
             unsafe_allow_html=True
         )
         st.markdown(
-            f"<div style='{card_line_style}'>• Tarifa eléctrica: "
+            f"<div style='{card_line_style}'>• Electricity rate: "
             f"<b>{st.session_state.tarifa}</b></div>",
             unsafe_allow_html=True
         )
 
     # ================== COLUMNA DERECHA ==================
     with col2:
-        st.subheader("Desafíos seleccionados")
+        st.subheader("Selected Challenges")
 
         etiquetas_prioridad = [
-            "🔴 Prioridad Alta",
-            "🟠 Prioridad Media",
-            "🟡 Prioridad Baja"
+            "🔴 High Priority",
+            "🟠 Medium Priority",
+            "🟡 Low Priority"
         ]
 
         for idx, d in enumerate(st.session_state.prioridades[:3]):
@@ -2283,7 +2283,7 @@ if st.session_state.step == 5:
             etiqueta = (
                 etiquetas_prioridad[idx]
                 if idx < len(etiquetas_prioridad)
-                else f"Prioridad {idx+1}"
+                else f"Priority {idx+1}"
             )
 
             st.markdown(f"""
@@ -2314,28 +2314,28 @@ if st.session_state.step == 5:
 
     # Tarifa numérica
     tarifa_dict = {
-        "Mayor a 0.1": 0.11,
-        "Entre 0.076 a 0.1": 0.09,
-        "Entre 0.05 a 0.075": 0.065,
-        "Menor a 0.05": 0.04
+        "More than 0.1": 0.11,
+        "Between 0.076 a 0.1": 0.09,
+        "Between 0.05 a 0.075": 0.065,
+        "Less than 0.05": 0.04
     }
     tarifa_real = tarifa_dict[st.session_state.tarifa]
 
     # Parámetros de casos desde Paso 4
     # C1: usamos 8% si no hay valor válido
-    r_c1_cfg = st.session_state.get("reduccion_c1_pct", 0.08)
+    r_c1_cfg = st.session_state.get("case1_reduction_pct", 0.08)
     try:
         r_c1_val = float(r_c1_cfg)
     except:
         r_c1_val = 0.08
     r_c1 = min(max(r_c1_val, 0.02), 0.30)  # forzar a rango sano (2%..30%)
-    esquema_id = int(st.session_state.get("esquema_id", 2))
+    esquema_id = int(st.session_state.get("scheme_id", 2))
 
     # Caso 3 presets
     def clamp(x, lo=0.60, hi=1.00): return max(lo, min(hi, x))
-    q_rel_con = st.session_state.get("q_rel_conservador")
+    q_rel_con = st.session_state.get("q_rel_conservative")
     q_rel_bas = st.session_state.get("q_rel_base")
-    q_rel_opt = st.session_state.get("q_rel_optimista")
+    q_rel_opt = st.session_state.get("q_rel_optimistic")
     if q_rel_con is None or q_rel_bas is None or q_rel_opt is None:
         base = float(st.session_state.get("c3_base", 0.85))
         delta = float(st.session_state.get("c3_delta", 0.05))
@@ -2426,14 +2426,14 @@ if st.session_state.step == 5:
     capex_total = float(capex_unit) * total_vent
 
     # -------- Diagnóstico rápido --------
-    with st.expander("🔎 Diagnóstico de cálculo (ver valores)", expanded=False):
+    with st.expander("🔎 Calculation diagnosis (view values)", expanded=False):
         st.write({
             "n_act": n_act, "n_obj": n_obj, "caso": caso,
-            "r_c1(%)": round(r_c1*100,2), "esquema_id": esquema_id,
+            "r_c1(%)": round(r_c1*100,2), "scheme_id": esquema_id,
             "E0 (MWh)": round(E0,2), "E1 (MWh)": round(E1,2),
             "E2 (MWh)": round(E2,2), "E3_base (MWh)": round(E3_base,2),
-            "ahorro_mwh_total": round(ahorro_mwh_total,2),
-            "ahorro_usd_total": round(ahorro_usd_total,2),
+            "annual_energy_savings_mwh_total": round(ahorro_mwh_total,2),
+            "annual_cost_savings_usd_total": round(ahorro_usd_total,2),
             "capex_unit_usd/vent": float(capex_unit),
             "total_vent": total_vent,
             "CAPEX total": round(capex_total,2),
@@ -2457,7 +2457,7 @@ if st.session_state.step == 5:
 
     # Barra 1: control actual
     fig1.add_trace(go.Bar(
-        name="Con control actual",
+        name="With current control",
         x=["Total"],
         y=[E0_gwh],
         marker_color="#d3d3d3",
@@ -2475,7 +2475,7 @@ if st.session_state.step == 5:
         textposition="inside"
     ))
 
-    # Línea entre los centros superiores de ambas barras (en GWh)
+    # Línea Between los centros superiores de ambas barras (en GWh)
     fig1.add_shape(
         type="line",
         xref="paper", yref="y",
@@ -2503,7 +2503,7 @@ if st.session_state.step == 5:
     )
 
     fig1.update_layout(
-        title="🔌 Consumo Energético Anual",
+        title="🔌 Annual Energy Consumption",
          yaxis_title="Energía (GWh)",
         xaxis_title="Sistema",
         barmode='group'
@@ -2541,7 +2541,7 @@ if st.session_state.step == 5:
 
     # Marca de inicio de ahorros y payback (si corresponde)
     fig2.add_vline(x=meses_impl + 1, line=dict(color="gray", dash="dot"))
-    fig2.add_annotation(x=meses_impl + 1, y=0, text="Inicio de ahorros", showarrow=True, yshift=30)
+    fig2.add_annotation(x=meses_impl + 1, y=0, text="Savings begin", showarrow=True, yshift=30)
 
     if pb_base:
         fig2.add_vline(x=pb_base, line=dict(color="#439889", dash="dot"))
@@ -2579,7 +2579,7 @@ if st.session_state.step == 5:
         fig2.add_annotation(
             x=0.6,
             y=(y0 + y1) / 2.0,
-            text=f"Inicial 40% \nUSD {primer_capex/1000:,.0f}k",
+            text=f"Initial 40% \nUSD {primer_capex/1000:,.0f}k",
             showarrow=False,
             font=dict(size=12, color="black"),
             align="left"
@@ -2587,8 +2587,8 @@ if st.session_state.step == 5:
 
 
     fig2.update_layout(
-        title="💰 Ahorro Económico Acumulado (24 meses)",
-        xaxis_title="Meses",
+        title="💰 Accumulated Economic Savings (24 months)",
+        xaxis_title="Monthes",
         yaxis_title="USD",
         legend=dict(orientation="h")
     )
@@ -2600,7 +2600,7 @@ if st.session_state.step == 5:
 
     # Mensaje de payback si aplica
     if pb_base:
-        st.success(f"💡 **Payback estimado**: mes {pb_base}. Desde aquí, los ahorros superan la inversión.")
+        st.success(f"💡 **Estimated payback period**: month {pb_base}. From this point on, the savings exceed the investment.")
 
     # ================== KPIs (Base) ==================
     card_style = """
@@ -2611,19 +2611,19 @@ if st.session_state.step == 5:
         margin-bottom: 20px;
     """
     indicadores_vod = {
-        "Ahorro de energía anual": f"{ahorro_mwh_total/1000:.1f} GWh",
-        "Consumo energético actual anual": f"{E0/1000:.1f} GWh",
-        "Porcentaje de ahorro energético anual": f"{(ahorro_mwh_total/E0*100):.1f} %"
+        "Annual Energy Savings": f"{ahorro_mwh_total/1000:.1f} GWh",
+        "Current annual energy consumption": f"{E0/1000:.1f} GWh",
+        "Porcentaje de savings energy annual": f"{(ahorro_mwh_total/E0*100):.1f} %"
     }
     indicadores_economicos = {
-        "Consumo con VoD anual": f"{E_final/1000:.1f} GWh",
-        "Ahorro económico anual": f"{ahorro_usd_total/1000:,.0f} K USD",
-        "Reducción de emisiones CO₂": f"{ahorro_mwh_total * 0.3:.1f} t/año"
+        "Annual energy consumption with VoD": f"{E_final/1000:.1f} GWh",
+        "Annual cost savings": f"{ahorro_usd_total/1000:,.0f} K USD",
+        "CO₂ emissions reduction": f"{ahorro_mwh_total * 0.3:.1f} t/año"
     }
 
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("### Indicadores VoD (Base)")
+        st.markdown("### VoD Indicators (Base)")
         for k, v in indicadores_vod.items():
             st.markdown(f"""
                 <div style="{card_style}">
@@ -2632,7 +2632,7 @@ if st.session_state.step == 5:
                 </div>
             """, unsafe_allow_html=True)
     with col2:
-        st.markdown("### Ahorro económico (Base)")
+        st.markdown("### Cost Savings (Base)")
         for k, v in indicadores_economicos.items():
             st.markdown(f"""
                 <div style="{card_style}">
@@ -2642,18 +2642,18 @@ if st.session_state.step == 5:
             """, unsafe_allow_html=True)
 
     st.info("""
-    ✔️ **Simulación completa**
-    Propuesta técnica y económica.
-    Evaluación VoD con indicadores Base y curva de payback por caso.
+    ✔️ **Simulation complete**
+    Technical and economic proposal.
+    VoD evaluation with base indicators and payback curve by case.
     """)
 
     colr1, colr2 = st.columns([1, 1])
     with colr1:
-        if st.button("🔄 Reiniciar simulación", key="reiniciar", type="secondary"):
+        if st.button("🔄 Restart simulation", key="reiniciar", type="secondary"):
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
     with colr2:
-        st.button("📧 Contactar a especialista ABB", key="contactar", type="primary")
+        st.button("📧 Contact an ABB specialist", key="contactar", type="primary")
 
 
