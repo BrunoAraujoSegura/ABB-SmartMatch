@@ -1348,14 +1348,14 @@ def apc_step1():
 
     # Volver a Paso 2 (desafíos) / cerrar APC
     with col_a:
-        if st.button("❌ Close APC", key="apc_close_1", use_container_width=True):
+        if st.button("Previous", key="apc_close_1", use_container_width=True):
             st.session_state.apc_mode = False
             st.session_state.step = 2
             st.rerun()
 
     # Ir a Paso 4 (Beneficios APC)
     with col_b:
-        if st.button("Calculate APC benefits ▶", key="apc_go_step2", type="primary", use_container_width=True):
+        if st.button("Next", key="apc_go_step2", type="primary", use_container_width=True):
             st.session_state.apc_mode = True   # por seguridad
             st.session_state.step = 4
             st.rerun()
@@ -1580,7 +1580,7 @@ def apc_step2():
             st.rerun()
 
     with col_b:
-        if st.button("❌ Close APC", key="apc_close_2", use_container_width=True):
+        if st.button("Previous", key="apc_close_2", use_container_width=True):
             st.session_state.apc_mode = False
             st.session_state.step = 2
             st.rerun()
