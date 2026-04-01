@@ -1997,7 +1997,7 @@ if st.session_state.step == 4:
             baja_pct = 100 - alta_pct
             return f"""
                 <div class="scheme-card {'selected' if selected else ''}">
-                    <div class="scheme-title">Esquema {num}</div>
+                    <div class="scheme-title">Scheme {num}</div>
                     <div class="bar-wrap">
                         <div class="bar-alta" style="width:{alta_pct}%"
                              title="High {alta_pct}%">{alta_pct}%</div>
