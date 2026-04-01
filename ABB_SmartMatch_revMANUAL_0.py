@@ -1731,7 +1731,7 @@ if st.session_state.step == 3:
     def _norm(s: str) -> str:
         return unicodedata.normalize("NFKD", (s or "")).encode("ascii","ignore").decode().strip().lower()
 
-    prioridades = st.session_state.get("Priorities", [])
+    prioridades = st.session_state.get("prioridades", [])
 
     # Por defecto, NO estamos en modo APC
     st.session_state.apc_mode = False
@@ -1964,7 +1964,7 @@ if st.session_state.step == 4:
                 overflow: hidden;
                 display: flex;
             }
-            .bar-alta {
+            .bar-High {
                 background: #335b89;
                 height: 100%;
                 display:flex;
@@ -1973,7 +1973,7 @@ if st.session_state.step == 4:
                 color:#fff;
                 font-size:12px;
             }
-            .bar-baja {
+            .bar-Low {
                 background: #dfe7f2;
                 height: 100%;
                 display:flex;
@@ -2000,11 +2000,11 @@ if st.session_state.step == 4:
                     <div class="scheme-title">Esquema {num}</div>
                     <div class="bar-wrap">
                         <div class="bar-alta" style="width:{alta_pct}%"
-                             title="Alta {alta_pct}%">{alta_pct}%</div>
-                        <div class="bar-baja" style="width:{baja_pct}%"
-                             title="Baja {baja_pct}%">{baja_pct}%</div>
+                             title="High {alta_pct}%">{alta_pct}%</div>
+                        <div class="bar-Low" style="width:{baja_pct}%"
+                             title="Low {baja_pct}%">{baja_pct}%</div>
                     </div>
-                    <div class="labels"><span>Alta</span><span>Baja</span></div>
+                    <div class="labels"><span>High</span><span>Low</span></div>
                 </div>
             """
 
@@ -2026,8 +2026,8 @@ if st.session_state.step == 4:
 
         st.write(
             f"Selected type: **{_esquema}**  •  "
-            f"High: **{int(ESQUEMAS[_esquema]['High']*100)}%**  |  "
-            f"Low: **{int(ESQUEMAS[_esquema]['Low']*100)}%**"
+            f"High: **{int(ESQUEMAS[_esquema]['alta']*100)}%** | "
+            f"Low: **{int(ESQUEMAS[_esquema]['baja']*100)}%**"
         )
 
         # ====== persistencia en sesión ======
@@ -2353,9 +2353,9 @@ if st.session_state.step == 5:
 
     # 👇 Caso 2: parte de E1 y pondera Alta/Baja; en baja vuelve a aplicar (1-r)^3
     ESQUEMAS = {
-        1: {"alta": 0.50, "baja": 0.50},
-        2: {"alta": 0.83, "baja": 0.17},
-        3: {"alta": 0.79, "baja": 0.21},
+    1: {"alta": 0.50, "baja": 0.50},
+    2: {"alta": 0.83, "baja": 0.17},
+    3: {"alta": 0.79, "baja": 0.21},
     }
     def calc_caso2_desde_E1(E1_mwh: float, esquema_id: int, r: float, tarifa: float):
         esq = ESQUEMAS.get(esquema_id, ESQUEMAS[2])
@@ -2442,7 +2442,7 @@ if st.session_state.step == 5:
     # ================== Recomendación ==================
     st.markdown(f"""
     <div style='background-color:#DFF0D8; padding:15px; font-size:150%; font-weight:bold; text-align:center; border-radius:8px;'>
-    ✅ Recomendación: Implementar Ventilation On Demand (Nivel {nivel_vod})
+    ✅ Recommendation: Implement On-Demand Ventilation (Nivel {nivel_vod})
     </div>
     """, unsafe_allow_html=True)
 
