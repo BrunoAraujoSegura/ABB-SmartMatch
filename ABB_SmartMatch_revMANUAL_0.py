@@ -30,7 +30,7 @@ def prev_step():
     
     
 def render_analysis_summary(info_items, prioridades):
-  #  st.markdown("### Analysis Results :")
+    st.markdown("### Analysis Results :")
 
     card_line_style = """
         background-color: #f7f8f9;
@@ -369,7 +369,7 @@ def get_diesel_l_km_subida(model: str) -> float:
 # ===================== EMS (PASO 3 y PASO 4) =====================
 
 def ems_ui_step3():
-    st.header("Step 3: Case Parameters")
+    st.header("Step 3 of 4: Case Parameters")
     st.caption("All values can be adjusted as applicable")
 
     # ---------- Parámetros generales ----------
@@ -1208,8 +1208,14 @@ def et_ui_step2():
         st.dataframe(df_dbg, use_container_width=True)
 
     st.markdown("---")
-    if st.button("⬅ Restart simulation", key="et_back_step1_y", use_container_width=True):
+    #if st.button("⬅ Restart simulation", key="et_back_step1_y", use_container_width=True):
+    #    st.session_state.et_step = 1
+    #    st.rerun()
+    
+    with colr1:
+    if st.button("🔄 Restart simulation", key="reiniciar_et", type="secondary"):
         st.session_state.et_step = 1
+        st.session_state.pop("et_params", None)  # opcional, si quieres limpiar parámetros
         st.rerun()
 
 
@@ -2023,7 +2029,7 @@ if st.session_state.step == 4:
 
 # ================== Paso 5: Resultado de análisis ==================
 if st.session_state.step == 5:
-   # st.header("Analysis Results")
+   st.header("Analysis Results")
     import plotly.graph_objects as go
 
     def get_priority_color(index):
@@ -2506,7 +2512,7 @@ if st.session_state.step == 5:
     indicadores_vod = {
         "Annual Energy Savings": f"{ahorro_mwh_total/1000:.1f} GWh",
         "Current annual energy consumption": f"{E0/1000:.1f} GWh",
-        "Porcentaje de savings energy annual": f"{(ahorro_mwh_total/E0*100):.1f} %"
+        "Annual savings energy percent": f"{(ahorro_mwh_total/E0*100):.1f} %"
     }
     indicadores_economicos = {
         "Annual energy consumption with VoD": f"{E_final/1000:.1f} GWh",
