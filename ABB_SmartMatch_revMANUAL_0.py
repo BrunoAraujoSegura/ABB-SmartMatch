@@ -1213,10 +1213,14 @@ def et_ui_step2():
     #    st.rerun()
     
     with colr1:
-    if st.button("🔄 Restart simulation", key="reiniciar_et", type="secondary"):
-        st.session_state.et_step = 1
-        st.session_state.pop("et_params", None)  # opcional, si quieres limpiar parámetros
-        st.rerun()
+        if st.button("🔄 Restart simulation", key="reiniciar_et", type="secondary"):
+            st.session_state.et_step = 1
+            st.session_state.pop("et_params", None)
+            st.rerun()
+
+    with colr2:
+        if st.button("📤 Contact an ABB specialist", key="contact_et"):
+            st.info("Contact action here")
 
 
 # ===================== APC (Advanced Process Control) =====================
