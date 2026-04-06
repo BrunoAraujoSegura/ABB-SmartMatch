@@ -2033,7 +2033,7 @@ if st.session_state.step == 4:
 
 # ================== Paso 5: Resultado de análisis ==================
 if st.session_state.step == 5:
-   st.header("Analysis Results")
+    st.header("Analysis Results")
     import plotly.graph_objects as go
 
     def get_priority_color(index):
