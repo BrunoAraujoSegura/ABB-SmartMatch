@@ -584,7 +584,7 @@ def ems_ui_step4():
     import plotly.graph_objects as go
 
     #st.header("Step 4 of 4: Energy Management System — Profitability Calculation")
-    st.header("Analysis Results")
+   # st.header("Analysis Results")
 
     P = st.session_state.get("ems_params", {})
     if not P:
@@ -1672,7 +1672,7 @@ if st.session_state.step == 3:
             st.header("Step 3 of 4: Case Parameters")
             et_ui_step1()
         else:
-            st.header("Analysis Results")
+        #    st.header("Analysis Results")
             et_ui_step2()
 
         st.stop()
@@ -1762,7 +1762,7 @@ if st.session_state.step == 4:
 
     # ---------- 1) Si estamos en modo APC, mostrar Beneficios APC ----------
     if st.session_state.get("apc_mode"):
-        st.header("Analysis Results")
+     #   st.header("Analysis Results")
         apc_step2()
         st.stop()
 
@@ -2033,7 +2033,7 @@ if st.session_state.step == 4:
 
 # ================== Paso 5: Resultado de análisis ==================
 if st.session_state.step == 5:
-    st.header("Analysis Results")
+  #  st.header("Analysis Results")
     import plotly.graph_objects as go
 
     def get_priority_color(index):
