@@ -30,7 +30,7 @@ def prev_step():
     
     
 def render_analysis_summary(info_items, prioridades):
-    st.markdown("### Analysis Results :")
+  #  st.markdown("### Analysis Results :")
 
     card_line_style = """
         background-color: #f7f8f9;
@@ -369,7 +369,7 @@ def get_diesel_l_km_subida(model: str) -> float:
 # ===================== EMS (PASO 3 y PASO 4) =====================
 
 def ems_ui_step3():
-    st.header("Case Parameters")
+    st.header("Step 3: Case Parameters")
     st.caption("All values can be adjusted as applicable")
 
     # ---------- Parámetros generales ----------
@@ -557,13 +557,13 @@ def ems_ui_step3():
     st.markdown("---")
     b1, b2 = st.columns(2)
     with b1:
-        if st.button("◀ Back to prioritization", use_container_width=True, key="ems_back_prior"):
+        if st.button("◀ Previous", use_container_width=True, key="ems_back_prior"):
             st.session_state.ems_active = False
             st.session_state.pop("ems_params", None)
             st.session_state.step = 2
             st.rerun()
     with b2:
-        if st.button("Calculate profitability ▶", type="primary", use_container_width=True, key="ems_go_calc"):
+        if st.button("Next ▶", type="primary", use_container_width=True, key="ems_go_calc"):
             st.session_state.ems_active = True
             st.session_state.ems_params = dict(
                 total_cost=total_cost,
@@ -583,12 +583,13 @@ def ems_ui_step4():
     import numpy as np
     import plotly.graph_objects as go
 
-    st.header("Step 4 of 4: Energy Management System — Profitability Calculation")
+    #st.header("Step 4 of 4: Energy Management System — Profitability Calculation")
+    st.header("Analysis Results")
 
     P = st.session_state.get("ems_params", {})
     if not P:
         st.warning("First complete Step 3 (EMS — Case Parameters).")
-        if st.button("Back to EMS — Parameters", use_container_width=True, key="ems_go_back_p3"):
+        if st.button("Restart Simulation", use_container_width=True, key="ems_go_back_p3"):
             st.session_state.step = 3
             st.rerun()
         return
@@ -659,8 +660,8 @@ def ems_ui_step4():
     valor_mod = f"USD {_fmt_short(ahorro_mod,1)}"
     valor_inv = f"USD {_fmt_short(inversion,1)}"
 
-    delta_opt = f"Payback optimista: M{pb_opt}" if pb_opt else ""
-    delta_mod = f"Payback moderado: M{pb_mod}" if pb_mod else ""
+    delta_opt = f"Optimistic Payback: M{pb_opt}" if pb_opt else ""
+    delta_mod = f"Moderate Payback: M{pb_mod}" if pb_mod else ""
     delta_inv = "Reference initial investment"
 
     colA, colB, colC = st.columns(3)
@@ -723,11 +724,11 @@ def ems_ui_step4():
     st.markdown("---")
     b1, b2 = st.columns(2)
     with b1:
-        if st.button("◀ Back to EMS — Parameters", use_container_width=True, key="ems_back_to_p3"):
+        if st.button("◀ Restart Simulation", use_container_width=True, key="ems_back_to_p3"):
             st.session_state.step = 3
             st.rerun()
     with b2:
-        st.button("📤 Export report (coming soon)", use_container_width=True, key="ems_export")
+        st.button("📤 Contact an ABB specialist", use_container_width=True, key="ems_export")
 
 
 #FIN EMS #
@@ -802,12 +803,12 @@ def et_ui_step1():
     # -------- Botones navegación --------
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
-        if st.button("◀ Back to prioritization", key="btn_et_back", use_container_width=True):
+        if st.button("◀ Previous", key="btn_et_back", use_container_width=True):
             st.session_state.et_step = 1
             st.session_state.step = 2
             st.rerun()
     with col_btn2:
-        if st.button("Calculate profitability ▶", key="btn_et_calc", type="primary", use_container_width=True):
+        if st.button("Next ▶", key="btn_et_calc", type="primary", use_container_width=True):
             st.session_state.et_step = 2
             st.session_state.et_params = dict(
                 dist_km=dist_km, pendiente=pendiente, n_trucks=n_trucks, model=model,
@@ -1134,7 +1135,7 @@ def et_ui_step2():
         unsafe_allow_html=True
     )
     
-    st.caption("• MTM = millones de tons-movidas · KtCO₂ = miles de tons de CO₂ · Savings: diesel vs (electric + mantenimiento).")
+    st.caption("• MTM = million tonnes moved · KtCO₂ = thousand tonnes of CO₂ · Savings: diesel vs (electricity + maintenance).")
 
     # ⚠️ AQUÍ YA NO HAY ANIMACIÓN DE CAMIONES ⚠️
 
@@ -1154,7 +1155,7 @@ def et_ui_step2():
     ))
     fig_tm.update_yaxes(range=[0, ymax_ton], dtick=ymax_ton/7.0, title="MTM")
     fig_tm.update_xaxes(title="Year")
-    fig_tm.update_layout(title="Toneladas acumuladas movidas(M TM)", margin=dict(l=10,r=10,t=60,b=40))
+    fig_tm.update_layout(title="Million tonnes moved(M TM)", margin=dict(l=10,r=10,t=60,b=40))
     fig_tm.add_annotation(x=years[-1], y=cum_ton_c1[-1], text=f"{cum_ton_c1[-1]:.0f} MTM",
                           showarrow=True, arrowhead=2, ax=30, ay=-20)
     fig_tm.add_annotation(x=years[-1], y=cum_ton_c2[-1], text=f"{cum_ton_c2[-1]:.0f} MTM",
@@ -1188,7 +1189,7 @@ def et_ui_step2():
     ))
     fig_co2.update_yaxes(range=[0, ymax_co2], dtick=max(ymax_co2/7.0, 0.5), title="K tCO₂")
     fig_co2.update_xaxes(title="Year")
-    fig_co2.update_layout(title="Savings acumulado de CO₂(K tCO₂)", margin=dict(l=10,r=10,t=60,b=40))
+    fig_co2.update_layout(title="Acumulated CO₂ saving(K tCO₂)", margin=dict(l=10,r=10,t=60,b=40))
     fig_co2.add_annotation(x=years[-1], y=cum_co2_saved_kt[-1],
                            text=f"{cum_co2_saved_kt[-1]:.1f} KtCO₂",
                            showarrow=True, arrowhead=2, ax=30, ay=-20)
@@ -1207,7 +1208,7 @@ def et_ui_step2():
         st.dataframe(df_dbg, use_container_width=True)
 
     st.markdown("---")
-    if st.button("⬅ Back to E-Trolley parameters", key="et_back_step1_y", use_container_width=True):
+    if st.button("⬅ Restart simulation", key="et_back_step1_y", use_container_width=True):
         st.session_state.et_step = 1
         st.rerun()
 
@@ -1413,7 +1414,7 @@ def apc_step2():
         st.markdown(
             f"""
             <div style="{card_style}">
-                <div style="font-size:24px; font-weight:bold;">{tons_anuales/1e6:,.2f} M ton/año</div>
+                <div style="font-size:24px; font-weight:bold;">{tons_anuales/1e6:,.2f} M tons/year</div>
                 <div style="font-size:14px; color:#555;">Throughput anual</div>
             </div>
             """,
@@ -1422,8 +1423,8 @@ def apc_step2():
         st.markdown(
             f"""
             <div style="{card_style}">
-                <div style="font-size:24px; font-weight:bold;">{energia_mwh/1000:,.2f} GWh/año</div>
-                <div style="font-size:14px; color:#555;">Consumo energético estimado</div>
+                <div style="font-size:24px; font-weight:bold;">{energia_mwh/1000:,.2f} GWh/year</div>
+                <div style="font-size:14px; color:#555;">Estimated energy consumption</div>
             </div>
             """,
             unsafe_allow_html=True
@@ -1435,7 +1436,7 @@ def apc_step2():
             f"""
             <div style="{card_style}">
                 <div style="font-size:24px; font-weight:bold;">MUSD {beneficio_recuperacion/1_000_000:,.0f}</div>
-                <div style="font-size:14px; color:#555;">Beneficio por +1% recuperación</div>
+                <div style="font-size:14px; color:#555;">Benefit per +1% recovery</div>
             </div>
             """,
             unsafe_allow_html=True
@@ -1444,7 +1445,7 @@ def apc_step2():
             f"""
             <div style="{card_style}">
                 <div style="font-size:24px; font-weight:bold;">KUSD {ahorro_reactivos/1000:,.0f}</div>
-                <div style="font-size:14px; color:#555;">Ahorro anual estimado en reactivos (5%)</div>
+                <div style="font-size:14px; color:#555;">Estimated annual savings in reagents (5%)</div>
             </div>
             """,
             unsafe_allow_html=True
@@ -1453,7 +1454,7 @@ def apc_step2():
             f"""
             <div style="{card_style}">
                 <div style="font-size:24px; font-weight:bold;">MUSD {beneficio_total/1_000_000:,.0f}</div>
-                <div style="font-size:14px; color:#555;">Beneficio económico total estimado (sin CAPEX)</div>
+                <div style="font-size:14px; color:#555;">Estimated total economic benefit (without CAPEX)</div>
             </div>
             """,
             unsafe_allow_html=True
@@ -1463,12 +1464,12 @@ def apc_step2():
     col_a, col_b = st.columns(2)
 
     with col_a:
-        if st.button("◀ Back a edit data APC", key="apc_back_step1", use_container_width=True):
+        if st.button("◀ Restart Simulation", key="apc_back_step1", use_container_width=True):
             st.session_state.step = 3
             st.rerun()
 
     with col_b:
-        if st.button("Previous", key="apc_close_2", use_container_width=True):
+        if st.button("Contact an ABB specialist", key="apc_close_2", use_container_width=True):
             st.session_state.apc_mode = False
             st.session_state.step = 2
             st.rerun()
@@ -1640,7 +1641,7 @@ if st.session_state.step == 3:
     if apc_auto:
         st.session_state.apc_mode = True
         st.session_state.ems_active = False
-        st.header("Step 3 of 4: Advanced Process Control (APC) — Process and Economic Data")
+        st.header("Step 3 of 4: Process and Economic Data ")
         apc_step1()
         st.stop()
 
@@ -1658,10 +1659,10 @@ if st.session_state.step == 3:
             st.session_state.et_step = 1
 
         if st.session_state.et_step == 1:
-            st.header("Step 3 of 4: E-Trolley — Case Parameters")
+            st.header("Step 3 of 4: Case Parameters")
             et_ui_step1()
         else:
-            st.header("Step 4 of 4: E-Trolley — Analysis Results")
+            st.header("Analysis Results")
             et_ui_step2()
 
         st.stop()
@@ -1751,7 +1752,7 @@ if st.session_state.step == 4:
 
     # ---------- 1) Si estamos en modo APC, mostrar Beneficios APC ----------
     if st.session_state.get("apc_mode"):
-        st.header("Step 4 of 4: Advanced Process Control (APC) — Estimated Benefits")
+        st.header("Analysis Results")
         apc_step2()
         st.stop()
 
@@ -2022,7 +2023,7 @@ if st.session_state.step == 4:
 
 # ================== Paso 5: Resultado de análisis ==================
 if st.session_state.step == 5:
-    st.header("Analysis Results")
+   # st.header("Analysis Results")
     import plotly.graph_objects as go
 
     def get_priority_color(index):
@@ -2334,7 +2335,7 @@ if st.session_state.step == 5:
     # ================== Recomendación ==================
     st.markdown(f"""
     <div style='background-color:#DFF0D8; padding:15px; font-size:150%; font-weight:bold; text-align:center; border-radius:8px;'>
-    ✅ Recommendation: Implement On-Demand Ventilation (Nivel {nivel_vod})
+    ✅ Recommendation: Implement On-Demand Ventilation (Level {nivel_vod})
     </div>
     """, unsafe_allow_html=True)
 
@@ -2396,8 +2397,8 @@ if st.session_state.step == 5:
 
     fig1.update_layout(
         title="🔌 Annual Energy Consumption",
-         yaxis_title="Energía (GWh)",
-        xaxis_title="Sistema",
+         yaxis_title="Energy (GWh)",
+        xaxis_title="System",
         barmode='group'
     )
 
@@ -2480,7 +2481,7 @@ if st.session_state.step == 5:
 
     fig2.update_layout(
         title="💰 Accumulated Economic Savings (24 months)",
-        xaxis_title="Monthes",
+        xaxis_title="Months",
         yaxis_title="USD",
         legend=dict(orientation="h")
     )
