@@ -28,6 +28,79 @@ def next_step():
 def prev_step():
     st.session_state.step -= 1 if st.session_state.step > 1 else 0
     
+    
+def render_analysis_summary(info_items, prioridades):
+    st.markdown("### Analysis Results :")
+
+    card_line_style = """
+        background-color: #f7f8f9;
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        font-size: 80%;
+    """
+
+    def _get_priority_color(idx: int) -> str:
+        colores = ["#fbeaea", "#fff3e0", "#fffde7"]
+        return colores[idx] if idx < len(colores) else "#f7f8f9"
+
+    etiquetas_prioridad = [
+        "🔴 High Priority",
+        "🟠 Medium Priority",
+        "🟡 Low Priority"
+    ]
+
+    col1, col2 = st.columns([1, 1.2])
+
+    with col1:
+        st.subheader("Information Summary")
+        for label, value in info_items:
+            st.markdown(
+                f"<div style='{card_line_style}'>• {label}: <b>{value}</b></div>",
+                unsafe_allow_html=True
+            )
+
+    with col2:
+        st.subheader("Selected Challenges")
+        for idx, d in enumerate(prioridades[:3]):
+            bg_color = _get_priority_color(idx)
+            etiqueta = etiquetas_prioridad[idx] if idx < len(etiquetas_prioridad) else f"Priority {idx+1}"
+
+            st.markdown(f"""
+                <div style="
+                    background-color: {bg_color};
+                    padding: 10px 15px;
+                    border-radius: 8px;
+                    margin-bottom: 8px;
+                    font-size: 80%;
+                ">
+                    <b>{etiqueta}:</b> {d}
+                </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("---")    
+    
+
+def render_recommendation_banner(texto: str):
+    st.markdown(f"""
+        <div style="
+            background-color: #dff0d8;
+            border: 1px solid #c3e6cb;
+            color: #1f3b1f;
+            padding: 18px 20px;
+            border-radius: 10px;
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        ">
+            ✅ Recommendation: {texto}
+        </div>
+    """, unsafe_allow_html=True)
+
+    
+    
 # Estilos personalizados para los botones
 st.markdown("""
     <style>
@@ -296,8 +369,8 @@ def get_diesel_l_km_subida(model: str) -> float:
 # ===================== EMS (PASO 3 y PASO 4) =====================
 
 def ems_ui_step3():
-    st.header("Step 3 of 4: Energy Management System — Case Parameters")
-    st.caption("Caso de reference basado en el ejemplo de Excel (puedes ajustar todos los valuees).")
+    st.header("Case Parameters")
+    st.caption("All values can be adjusted as applicable")
 
     # ---------- Parámetros generales ----------
     col1, col2 = st.columns(2)
@@ -501,89 +574,47 @@ def ems_ui_step3():
             st.session_state.step = 4  # Va al Paso 4 (EMS) donde usas ems_ui_step4()
             st.rerun()
 
+   
+
 
 
 def ems_ui_step4():
+
     import numpy as np
     import plotly.graph_objects as go
 
     st.header("Step 4 of 4: Energy Management System — Profitability Calculation")
 
-    # Parámetros calculados en el Paso 3
     P = st.session_state.get("ems_params", {})
     if not P:
-        st.warning("First complete el Step 3 (EMS — Case Parameters).")
+        st.warning("First complete Step 3 (EMS — Case Parameters).")
         if st.button("Back to EMS — Parameters", use_container_width=True, key="ems_go_back_p3"):
             st.session_state.step = 3
             st.rerun()
         return
 
-    ahorro_opt = float(P["savings_opt"])
-    ahorro_mod = float(P["savings_mod"])
+    ahorro_opt = float(P["ahorro_opt"])
+    ahorro_mod = float(P["ahorro_mod"])
     inversion  = float(P["inversion"])
 
-    # ========= BLOQUE: RESUMEN DE INFORMACIÓN (igual estilo que VoD / E-Trolley) =========
-    st.markdown("### Resultado del analysis :")
-
-    card_line_style = """
-        background-color: #f7f8f9;
-        padding: 10px 15px;
-        border-radius: 8px;
-        margin-bottom: 8px;
-        font-size: 80%;
-    """
-
-    def _get_priority_color(idx: int) -> str:
-        colores = ["#fbeaea", "#fff3e0", "#fffde7"]
-        return colores[idx] if idx < len(colores) else "#f7f8f9"
-
-    etiquetas_prioridad = [
-        "🔴 High Priority",
-        "🟠 Medium Priority",
-        "🟡 Low Priority"
+    info_items = [
+    ("Type of mine", 
+     st.session_state.get("tipo_mine")
+     or st.session_state.get("tipo_mina")
+     or st.session_state.get("mine_type")
+     or "Not defined"),
+    ("Extracted material", st.session_state.get("tipo_material", "—")),
+    ("Production", st.session_state.get("produccion", "—")),
     ]
 
-    col1, col2 = st.columns([1, 1.2])
+    prioridades = st.session_state.get("prioridades", [])
 
-    # ---- Columna izquierda: resumen de datos base ----
-    with col1:
-        st.subheader("Information Summary")
+    render_analysis_summary(info_items, prioridades)
+    render_recommendation_banner("Implement Energy Management System (EMS)")
 
-        tipo_mina      = st.session_state.get("tipo_mine", "—")
-        tipo_material  = st.session_state.get("tipo_material", "—")
-        produccion     = st.session_state.get("produccion", "—")
-
-        st.markdown(f"<div style='{card_line_style}'>• Tipo de mina: <b>{tipo_mina}</b></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='{card_line_style}'>• Material extraído: <b>{tipo_material}</b></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='{card_line_style}'>• Producción: <b>{produccion}</b></div>", unsafe_allow_html=True)
-       # st.markdown(f"• **Disponibilidad promedio:** {st.session_state.ems_disponibilidad:.2f} %")
-       # st.markdown(f"• **Precio energía:** {st.session_state.ems_precio_energia:.3f} USD/kWh")
-       # st.markdown(f"• **Ahorro estimado optimista:** {st.session_state.ems_ahorro_opt:.2f} %")
-       # st.markdown(f"• **Ahorro estimado moderado:** {st.session_state.ems_ahorro_mod:.2f} %")
-       # st.markdown(f"• **Inversión estimada EMS:** {st.session_state.ems_inversion:.1f} kUSD")
-    # ---- Columna derecha: desafíos seleccionados ----
-    with col2:
-        st.subheader("Selected Challenges")
-
-        prioridades = st.session_state.get("prioridades", [])
-        for idx, d in enumerate(prioridades[:3]):
-            bg_color = _get_priority_color(idx)
-            etiqueta = etiquetas_prioridad[idx] if idx < len(etiquetas_prioridad) else f"Prioridad {idx+1}"
-
-            st.markdown(f"""
-                <div style="
-                    background-color: {bg_color};
-                    padding: 10px 15px;
-                    border-radius: 8px;
-                    margin-bottom: 8px;
-                    font-size: 80%;
-                ">
-                    <b>{etiqueta}:</b> {d}
-                </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown("---")
-
+    # luego siguen tus KPIs, gráfica y botones...
+  
+  
     # ========= BLOQUE: INDICADORES ESTILO E-TROLLEY =========
 
     def _fmt_short(x: float, decimals: int = 1) -> str:
@@ -650,7 +681,7 @@ def ems_ui_step4():
 
     colA.markdown(
         kpi_style.format(
-            valor=valor_opt,
+            value=valor_opt,
             subtitulo="Annual savings (optimistic)",
             delta=delta_opt
         ),
@@ -658,7 +689,7 @@ def ems_ui_step4():
     )
     colB.markdown(
         kpi_style.format(
-            valor=valor_mod,
+            value=valor_mod,
             subtitulo="Annual savings (moderate)",
             delta=delta_mod
         ),
@@ -666,7 +697,7 @@ def ems_ui_step4():
     )
     colC.markdown(
         kpi_style.format(
-            valor=valor_inv,
+            value=valor_inv,
             subtitulo="Estimated EMS investment",
             delta=delta_inv
         ),
@@ -889,133 +920,52 @@ def _vlookup_scenx(year: int, scen_key: str) -> float:
 
 
 def et_ui_step2():
+    
     import math
     import pandas as pd
     import plotly.graph_objects as go
-
-   
-    # ---------- 1) Parámetros guardados ----------
+    
     P = st.session_state.get("et_params", {})
     if not P:
         st.warning("There are no parameters. Go back to Step 1.")
-        if st.button("Back", use_container_width=True, key="et2_volver_btn"):
-            st.session_state.et_step = 1
+        if st.button("◀ Back to parameters", use_container_width=True, key="et2_back_empty"):
+            st.session_state.step = 3
+            st.rerun()
         return
 
-    # ============ BLOQUE DE RESUMEN (igual estilo que VoD) ============
-    
-    card_line_style = """
-        background-color: #f7f8f9;
-        padding: 10px 15px;
-        border-radius: 8px;
-        margin-bottom: 8px;
-        font-size: 80%;
-    """
+    tipo_mina = (
+        st.session_state.get("tipo_mine")
+        or st.session_state.get("tipo_mina")
+        or st.session_state.get("mine_type")
+        or "Not defined"
+    )
 
-    def get_priority_color(index):
-        colores = ["#fbeaea", "#fff3e0", "#fffde7"]
-        return colores[index] if index < len(colores) else "#f7f8f9"
+    tipo_material = st.session_state.get("tipo_material", "—")
+    produccion = st.session_state.get("produccion", "—")
 
-    etiquetas_prioridad = [
-        "🔴 High Priority",
-        "🟠 Medium Priority",
-        "🟡 Low Priority"
+    info_items = [
+        ("Type of mine", tipo_mina),
+        ("Extracted material", tipo_material),
+        ("Production", produccion),
+        ("Segment distance", f"{P.get('dist_km', 0):.2f} km"),
+        ("Average slope", f"{P.get('pendiente', 0):.1f} %"),
+        ("Number of trucks", f"{int(P.get('n_trucks', 0))}"),
+        ("Selected model", f"{P.get('model', '-')}"),
+        ("Type of investment", f"{P.get('inv_type', '-')}"),
+        ("Contingency", f"{P.get('conting', 0):.1f} %"),
+        ("Energy cost", f"{P.get('energy', 0):.3f} USD/kWh"),
+        ("Trolley maintenance", f"{P.get('maint_y', 0)/1000:.1f} kUSD/year"),
     ]
 
-    col_res1, col_res2 = st.columns([1, 1])
+    prioridades = st.session_state.get("prioridades", [])
 
-    # ---- Columna izquierda: resumen general + parámetros E-Trolley ----
-    with col_res1:
-        st.subheader("Information Summary")
+    render_analysis_summary(info_items, prioridades)
+    render_recommendation_banner("Implement E-Trolley Solution")
+            
 
-        tipo_mina     = st.session_state.get("tipo_mine", "-")
-        tipo_material = st.session_state.get("tipo_material", "-")
-        produccion    = st.session_state.get("produccion", "-")
-
-        st.markdown(
-            f"<div style='{card_line_style}'>• Tipo de mina: <b>{tipo_mina}</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Material extraído: <b>{tipo_material}</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Producción: <b>{produccion}</b></div>",
-            unsafe_allow_html=True
-        )
-
-        # ---- Parámetros específicos de E-Trolley (de et_params) ----
-        st.markdown(
-            f"<div style='{card_line_style}'>• Distancia del tramo: "
-            f"<b>{P.get('dist_km', 0):.2f} km</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Pendiente promedio: "
-            f"<b>{P.get('pendiente', 0):.2f} %</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Cantidad de camiones: "
-            f"<b>{int(P.get('n_trucks', 0))}</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Modelo: "
-            f"<b>{P.get('model', '-')}</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Tipo de inversión: "
-            f"<b>{P.get('inv_type', '-')}</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Contingencia: "
-            f"<b>{P.get('conting', 0)} %</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Energy costs: "
-            f"<b>{P.get('energy', 0):.3f} USD/kWh</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Mantenimiento trolley: "
-            f"<b>{P.get('maint_y', 0)/1000:.1f} kUSD/año</b></div>",
-            unsafe_allow_html=True
-        )
-
-    # ---- Columna derecha: desafíos seleccionados ----
-    with col_res2:
-        st.subheader("Selected Challenges")
-
-        prioridades = st.session_state.get("prioridades", [])
-        for idx, d in enumerate(prioridades[:3]):
-            bg_color = get_priority_color(idx)
-            etiqueta = (
-                etiquetas_prioridad[idx]
-                if idx < len(etiquetas_prioridad)
-                else f"Prioridad {idx+1}"
-            )
-            st.markdown(
-                f"""
-                <div style="
-                    background-color: {bg_color};
-                    padding: 10px 15px;
-                    border-radius: 8px;
-                    margin-bottom: 8px;
-                    font-size: 80%;
-                ">
-                    <b>{etiqueta}:</b> {d}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
 
     st.markdown("---")  # separador visual antes de los KPIs y gráficos
-    st.markdown("### Resultados proyectados a largo plazo")
+    st.markdown("### Long-term projected results")
 
     # ============ FIN BLOQUE RESUMEN ============
 
@@ -1167,9 +1117,22 @@ def et_ui_step2():
             <p style="margin-top:5px; color:#008000; font-size:13px;">{delta}</p>
         </div>
     """
-    col1.markdown(kpi_style.format(valor=toneladas, subtitulo="Tons Moved (10 years)", delta=delta_ton), unsafe_allow_html=True)
-    col2.markdown(kpi_style.format(valor=emisiones, subtitulo="Avoided Emissions (10 years)", delta=""), unsafe_allow_html=True)
-    col3.markdown(kpi_style.format(valor=ahorro, subtitulo="Annual Operating Savings", delta=""), unsafe_allow_html=True)
+    col1.markdown(
+    kpi_style.format(value=toneladas, subtitulo="Tons Moved (10 years)", delta=delta_ton),
+    unsafe_allow_html=True
+    )
+    col2.markdown(
+        kpi_style.format(value=emisiones, subtitulo="Avoided Emissions (10 years)", delta=""),
+        unsafe_allow_html=True
+    )
+    col3.markdown(
+        kpi_style.format(value=ahorro, subtitulo="Annual Operating Savings", delta=""),
+        unsafe_allow_html=True
+    )
+    col4.markdown(
+        kpi_style.format(value=capex, subtitulo="Estimated CAPEX", delta=""),
+        unsafe_allow_html=True
+    )
     
     st.caption("• MTM = millones de tons-movidas · KtCO₂ = miles de tons de CO₂ · Savings: diesel vs (electric + mantenimiento).")
 
@@ -1252,7 +1215,7 @@ def et_ui_step2():
 # ===================== APC (Advanced Process Control) =====================
 
 def apc_step1():
-    st.subheader("APC — Step 1: Process and Economic Data")
+    st.subheader("Process and Economic Data")
 
     # Valores por defecto tomados del Excel
     throughput = st.number_input(
@@ -1391,111 +1354,36 @@ def apc_step2():
     # Valores en MUSD para mostrarlos bonitos
     reagent_m_musd = float(st.session_state.get("apc_reagent_cost_m_musd", reagent_m/1_000_000))
     rec_1pct_musd  = float(st.session_state.get("apc_recovery_value_musd", rec_1pct_val/1_000_000))
+    
+    tipo_mina = (
+    st.session_state.get("tipo_mine")
+    or st.session_state.get("tipo_mina")
+    or st.session_state.get("mine_type")
+    or "Not defined"
+    )
 
-    # ========= 2) Bloque de RESUMEN (similar a E-Trolley) =========
-    card_line_style = """
-        background-color: #f7f8f9;
-        padding: 10px 15px;
-        border-radius: 8px;
-        margin-bottom: 8px;
-        font-size: 80%;
-    """
-
-    def get_priority_color(index):
-        colores = ["#fbeaea", "#fff3e0", "#fffde7"]
-        return colores[index] if index < len(colores) else "#f7f8f9"
-
-    etiquetas_prioridad = [
-        "🔴 High Priority",
-        "🟠 Medium Priority",
-        "🟡 Low Priority"
+    info_items = [
+        ("Type of mine", tipo_mina),
+        ("Extracted material", tipo_material),
+        ("Production", produccion),
+        ("Design throughput", f"{tp:,.0f} tph"),
+        ("Availability", f"{avail_pct:.0f}%"),
+        ("System power", f"{p_mw:.1f} MW"),
+        ("Energy cost", f"{c_kwh:.3f} USD/kWh"),
+        ("Net worth per ton", f"{net_worth:,.1f} USD/t"),
+        ("Monthly reagent cost", f"{reagent_m_musd:,.2f} MUSD/month"),
+        ("Economic value of 1% recovery", f"{rec_1pct_musd:,.2f} MUSD/year"),
     ]
 
-    col_res1, col_res2 = st.columns([1, 1])
+    prioridades = st.session_state.get("prioridades", [])
 
-    # ----- Columna izquierda: Resumen de información -----
-    with col_res1:
-        st.subheader("Information Summary")
+    render_analysis_summary(info_items, prioridades)
+    render_recommendation_banner("Implement Advanced Process Control (APC)")
+        
 
-        st.markdown(
-            f"<div style='{card_line_style}'>• Tipo de mina: "
-            f"<b>{tipo_mina}</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Material extraído: "
-            f"<b>{tipo_material}</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Producción: "
-            f"<b>{produccion}</b></div>",
-            unsafe_allow_html=True
-        )
+   
 
-        st.markdown(
-            f"<div style='{card_line_style}'>• Throughput de diseño: "
-            f"<b>{tp:,.0f} tph</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Disponibilidad operativa: "
-            f"<b>{avail_pct:.0f} %</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Potencia del sistema: "
-            f"<b>{p_mw:.1f} MW</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Energy costs: "
-            f"<b>{c_kwh:.3f} USD/kWh</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Net worth del mineral: "
-            f"<b>{net_worth:,.0f} USD/t</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Costo mensual de reactivos: "
-            f"<b>{reagent_m_musd:.3f} MUSD/mes</b></div>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div style='{card_line_style}'>• Valor del 1% de recuperación: "
-            f"<b>{rec_1pct_musd:.1f} MUSD/año</b></div>",
-            unsafe_allow_html=True
-        )
-
-    # ----- Columna derecha: Desafíos seleccionados -----
-    with col_res2:
-        st.subheader("Selected Challenges")
-
-        prioridades = st.session_state.get("prioridades", [])
-        for idx, d in enumerate(prioridades[:3]):
-            bg_color = get_priority_color(idx)
-            etiqueta = (
-                etiquetas_prioridad[idx]
-                if idx < len(etiquetas_prioridad)
-                else f"Prioridad {idx+1}"
-            )
-            st.markdown(
-                f"""
-                <div style="
-                    background-color: {bg_color};
-                    padding: 10px 15px;
-                    border-radius: 8px;
-                    margin-bottom: 8px;
-                    font-size: 80%;
-                ">
-                    <b>{etiqueta}:</b> {d}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
+    
     st.markdown("---")  # separador antes de los KPIs
 
     # ========= 3) Cálculos APC (igual que antes) =========
@@ -1725,52 +1613,50 @@ def casos_desde_ruta(ruta: list[str]):
     
 # Paso 3 de 4
 # Paso 3 de 4
+# ======================= STEP 3 =======================
 if st.session_state.step == 3:
     import unicodedata
 
     def _norm(s: str) -> str:
-        return unicodedata.normalize("NFKD", (s or "")).encode("ascii","ignore").decode().strip().lower()
+        return unicodedata.normalize("NFKD", (s or "")).encode("ascii", "ignore").decode().strip().lower()
 
     prioridades = st.session_state.get("prioridades", [])
 
-    # Por defecto, NO estamos en modo APC
-    st.session_state.apc_mode = False
+    tipo_mina = (
+        st.session_state.get("tipo_mine")
+        or st.session_state.get("tipo_mina")
+        or st.session_state.get("mine_type")
+        or ""
+    )
 
-    # ---------- 1) COMBO APC (P1,P2,P3) ----------
+    # ---------- 1) APC ----------
     apc_auto = (
         len(prioridades) >= 3 and
         _norm(prioridades[0]) == _norm("Increase metallurgical recovery") and
-        _norm(prioridades[1]) == _norm("Enhance equipment productivity ") and
+        _norm(prioridades[1]) == _norm("Enhance equipment productivity") and
         _norm(prioridades[2]) == _norm("Reduce energy consumption")
     )
 
     if apc_auto:
         st.session_state.apc_mode = True
+        st.session_state.ems_active = False
         st.header("Step 3 of 4: Advanced Process Control (APC) — Process and Economic Data")
-        apc_step1()          # 👈 mostramos directamente el Paso 1 de APC
-        st.stop()            # 👈 no seguimos a EMS / VoD / Trolley
+        apc_step1()
+        st.stop()
 
-    # ---------- 2) SI NO ES APC, seguimos con la lógica existente (EMS / Trolley / VoD) ----------
-    priority1_exact = prioridades[0] if len(prioridades) >= 1 else None
-    priority2_exact = prioridades[1] if len(prioridades) >= 2 else None
+    # ---------- 2) E-Trolley ----------
+    etrolley_auto = (
+        _norm(tipo_mina) == _norm("Open pit")
+        and any(_norm(p) == _norm("Reduce fossil fuel use") for p in prioridades)
+    )
 
-    # 🔌 Hook E-Trolley: mina a tajo abierto + prioridad en combustible fósil
-    if _norm(priority2_exact) == _norm("Reduce fossil fuel use") and \
-       st.session_state.get("tipo_mine", "") == "Open pit":
+    if etrolley_auto:
+        st.session_state.apc_mode = False
+        st.session_state.ems_active = False
 
-        # Inicializa sub-pasos de E-Trolley si es la primera vez
         if "et_step" not in st.session_state:
             st.session_state.et_step = 1
 
-        # 🔌 Hook E-Trolley: mina a tajo abierto + prioridad en combustible fósil
-    if _norm(priority2_exact) == _norm("Reduce fossil fuel use") and \
-       st.session_state.get("tipo_mine", "") == "Open pit":
-
-        # Inicializa sub-pasos de E-Trolley si es la primera vez
-        if "et_step" not in st.session_state:
-            st.session_state.et_step = 1
-
-        # 👉 Título distinto según sub-paso
         if st.session_state.et_step == 1:
             st.header("Step 3 of 4: E-Trolley — Case Parameters")
             et_ui_step1()
@@ -1780,20 +1666,26 @@ if st.session_state.step == 3:
 
         st.stop()
 
+    # ---------- 3) EMS ----------
+    priority1_exact = prioridades[0] if len(prioridades) >= 1 else None
+    priority2_exact = prioridades[1] if len(prioridades) >= 2 else None
 
-
-
-    # Hook EMS si P1=centralizar visibilidad y P2=reducción energética
-    if (priority1_exact and priority2_exact and
+    if (
+        priority1_exact and priority2_exact and
         _norm(priority1_exact) == _norm("Centralize operational visibility") and
-        _norm(priority2_exact) == _norm("Reduce energy consumption")):
+        _norm(priority2_exact) == _norm("Reduce energy consumption")
+    ):
+        st.session_state.apc_mode = False
         st.session_state.ems_active = True
         ems_ui_step3()
         st.stop()
 
-    # Si no estamos en EMS ni E-Trolley, forzamos VoD (como ya tenías)
+    # ---------- 4) VoD (default) ----------
+    st.session_state.apc_mode = False
     st.session_state.ems_active = False
     st.session_state.pop("ems_params", None)
+
+       # aquí continúa tu lógica actual de VoD
     st.header("Step 3 of 4: Current and Target Automation Level")
     ...
 
