@@ -1213,6 +1213,8 @@ def et_ui_step2():
     #    st.session_state.et_step = 1
     #    st.rerun()
     
+    colr1, colr2 = st.columns(2)
+    
     with colr1:
         if st.button("🔄 Restart simulation", key="reiniciar_et", type="secondary"):
             st.session_state.et_step = 1
