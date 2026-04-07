@@ -967,7 +967,8 @@ def et_ui_step2():
 
     st.markdown("---")  # separador visual antes de los KPIs y gráficos
     st.markdown("### Long-term projected results")
-
+    
+    col1, col2 = st.columns(2)
     # ============ FIN BLOQUE RESUMEN ============
 
 
